@@ -14,27 +14,21 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            
-            /* --- 核心修改：深邃生物科技背景 --- */
-            /* 这种深蓝+紫色的渐变，很有荧光显微镜或分子模拟软件的感觉 */
             background: linear-gradient(125deg, #0f0c29, #302b63, #24243e);
             background-size: 400% 400%;
             animation: deepScienceBG 15s ease infinite;
         }
 
-        /* 背景缓慢流动的动画 */
         @keyframes deepScienceBG {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
 
-        /* --- 毛玻璃卡片 --- */
         .glass-container {
             width: 340px;
             padding: 40px 30px;
             border-radius: 20px;
-            /* 调整为更通透的深色玻璃感，适配深色背景 */
             background: rgba(255, 255, 255, 0.1); 
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
@@ -56,7 +50,6 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
-        /* --- 时钟区域 --- */
         .clock-container {
             color: rgba(255, 255, 255, 0.95);
             margin-bottom: 25px;
@@ -77,7 +70,6 @@
             margin-top: 5px;
         }
 
-        /* --- 搜索框 --- */
         .search-box {
             display: flex;
             align-items: center;
@@ -114,20 +106,19 @@
             margin-left: 10px;
         }
 
-        /* --- 按钮 --- */
         .btn {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
             width: 100%;
-            padding: 15px 0;
-            margin-bottom: 12px;
+            padding: 12px 0; /* 略微收窄，适配更多按钮 */
+            margin-bottom: 10px;
             text-decoration: none;
-            color: #2c3e50; /* 深色文字 */
+            color: #2c3e50;
             background: rgba(255, 255, 255, 0.85);
             border-radius: 12px;
-            font-size: 16px;
+            font-size: 14px; /* 字体稍微调小一点，保证单行美观 */
             font-weight: 500;
             transition: all 0.3s ease;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -143,7 +134,7 @@
             margin-top: 25px;
             color: rgba(255,255,255,0.6);
             font-size: 12px;
-            font-family: monospace; /* 换成等宽字体，更有代码/科研感 */
+            font-family: monospace;
             letter-spacing: 0.5px;
         }
     </style>
@@ -154,7 +145,7 @@
         <div class="avatar">🧬</div>
         
         <div class="clock-container">
-            <div class="time" id="time">00:00:00</div>
+            <div class="time" id="time">00:00</div>
             <div class="date" id="date">载入中...</div>
         </div>
 
@@ -164,11 +155,15 @@
         </form>
 
         <a href="https://drug-screen-tool-v10-dssqr5cvbbpfhx9ttaggov.streamlit.app/" class="btn" target="_blank">
-            <span>💊</span> FeliEase 高通量药物筛选分析平台
+            <span>💊</span> FeliEase 药物筛选平台
         </a>
 
         <a href="https://ai-drug-analysis-randomforest-v10-6lstxt3ksps9cohbh8ffft.streamlit.app/" class="btn" target="_blank">
-            <span>🧬</span> Random Forest
+            <span>🧬</span> AI Random Forest
+        </a>
+
+        <a href="https://xfbai1840-cool-lung-fibrosis-analyzer-app-6lsmkn.streamlit.app/" class="btn" target="_blank">
+            <span>🔬</span> 肺纤维化病理自动评分
         </a>
         
         <a href="https://synergyfinder.aittokallio.group/2026020507153416634/" class="btn" target="_blank">
@@ -181,7 +176,7 @@
 
         <a href="https://github.com/xfbai1840-cool/Discovery_start-page/raw/refs/heads/main/Discovery%20lab_finance.exe" class="btn" download>
             <span>💰</span> 下载财务管理系统 (.exe)
-        </a>   
+        </a>    
         
         <div class="footer">
             Targeting Viral RNA with Small Molecules
@@ -205,5 +200,3 @@
     </script>
 </body>
 </html>
-
-
