@@ -3,20 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discovery科研导航站</title>
+    <title>Discovery 实验室科研工作台</title>
     <style>
         /* --- 基础设置 --- */
+        :root {
+            --primary-color: rgba(255, 255, 255, 0.1);
+            --hover-color: rgba(255, 255, 255, 0.2);
+            --text-main: rgba(255, 255, 255, 0.95);
+            --text-sub: rgba(255, 255, 255, 0.6);
+        }
+
         body {
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
-            align-items: center;
-            justify-content: center;
             background: linear-gradient(125deg, #0f0c29, #302b63, #24243e);
             background-size: 400% 400%;
             animation: deepScienceBG 15s ease infinite;
+            color: var(--text-main);
         }
 
         @keyframes deepScienceBG {
@@ -25,161 +31,331 @@
             100% { background-position: 0% 50%; }
         }
 
-        .glass-container {
-            width: 340px;
-            padding: 40px 30px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.1); 
+        /* --- 整体布局：侧边栏 + 主内容区 --- */
+        .dashboard-container {
+            display: flex;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            gap: 30px;
+        }
+
+        /* --- 毛玻璃通用类 --- */
+        .glass-panel {
+            background: var(--primary-color);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* --- 左侧导航栏 --- */
+        .sidebar {
+            width: 300px;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+            height: calc(100vh - 100px);
+            position: sticky;
+            top: 20px;
         }
 
         .avatar {
-            width: 80px;
-            height: 80px;
+            width: 70px;
+            height: 70px;
             border-radius: 50%;
             background-color: rgba(255,255,255,0.9);
-            margin: 0 auto 15px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 35px;
+            font-size: 30px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            margin-bottom: 15px;
+        }
+
+        .lab-name {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .lab-focus {
+            font-size: 12px;
+            color: #a8b2d1;
+            text-align: center;
+            margin-bottom: 30px;
+            line-height: 1.4;
         }
 
         .clock-container {
-            color: rgba(255, 255, 255, 0.95);
-            margin-bottom: 25px;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            text-align: center;
+            margin-bottom: 30px;
+            width: 100%;
+            padding: 15px 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
         .time {
-            font-size: 42px;
+            font-size: 36px;
             font-weight: 700;
-            line-height: 1.1;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
         }
         
         .date {
-            font-size: 14px;
-            font-weight: 400;
-            opacity: 0.8;
+            font-size: 13px;
+            color: var(--text-sub);
             margin-top: 5px;
         }
 
         .search-box {
             display: flex;
             align-items: center;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 12px;
-            padding: 5px 15px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            padding: 8px 15px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 30px;
             transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
         .search-box:focus-within {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255,255,255,0.4);
             transform: scale(1.02);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
-            background: rgba(255, 255, 255, 1);
         }
 
         .search-input {
             flex: 1;
             border: none;
             background: transparent;
-            padding: 10px 0;
-            font-size: 16px;
+            color: #fff;
+            font-size: 14px;
             outline: none;
-            color: #333;
+        }
+
+        .search-input::placeholder {
+            color: rgba(255,255,255,0.5);
         }
 
         .search-btn {
             background: transparent;
             border: none;
             cursor: pointer;
-            font-size: 18px;
-            padding: 0;
-            margin-left: 10px;
+            color: #fff;
+            font-size: 16px;
         }
 
-        .btn {
+        .sidebar-links {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .side-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            color: var(--text-main);
+            text-decoration: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .side-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        /* --- 右侧主内容区 --- */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            padding: 10px 0;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin: 0 0 15px 5px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+
+        /* 网格系统：根据屏幕宽度自动排列卡片 */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .tool-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 20px;
+            text-decoration: none;
+            color: var(--text-main);
+            border-radius: 16px;
+            background: var(--primary-color);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .tool-card:hover {
+            background: var(--hover-color);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        .tool-icon {
+            font-size: 28px;
+            background: rgba(255,255,255,0.1);
+            width: 50px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            width: 100%;
-            padding: 12px 0; /* 略微收窄，适配更多按钮 */
-            margin-bottom: 10px;
-            text-decoration: none;
-            color: #2c3e50;
-            background: rgba(255, 255, 255, 0.85);
             border-radius: 12px;
-            font-size: 14px; /* 字体稍微调小一点，保证单行美观 */
+            flex-shrink: 0;
+        }
+
+        .tool-info h4 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
             font-weight: 500;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        .btn:hover {
-            background: #fff;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
-
-        .footer {
-            margin-top: 25px;
-            color: rgba(255,255,255,0.6);
+        .tool-info p {
+            margin: 0;
             font-size: 12px;
-            font-family: monospace;
-            letter-spacing: 0.5px;
+            color: var(--text-sub);
+            line-height: 1.4;
+        }
+
+        /* 响应式设计：手机端适配 */
+        @media (max-width: 900px) {
+            .dashboard-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                top: 0;
+                box-sizing: border-box;
+            }
+            .tools-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
 
-    <div class="glass-container">
-        <div class="avatar">🧬</div>
-        
-        <div class="clock-container">
-            <div class="time" id="time">00:00</div>
-            <div class="date" id="date">载入中...</div>
+    <div class="dashboard-container">
+        <div class="sidebar glass-panel">
+            <div class="avatar">🔬</div>
+            <div class="lab-name">Discovery Lab</div>
+            <div class="lab-focus">Targeting FIPV Ribosomal Frameshift<br>with Small Molecules</div>
+            
+            <div class="clock-container">
+                <div class="time" id="time">00:00</div>
+                <div class="date" id="date">载入中...</div>
+            </div>
+
+            <form action="https://www.bing.com/" method="get" target="_blank" class="search-box">
+                <input type="text" name="q" class="search-input" placeholder="文献 / 数据搜索..." required>
+                <button type="submit" class="search-btn">🔍</button>
+            </form>
+
+            <div class="sidebar-links">
+                <a href="https://chat.deepseek.com/" class="side-btn" target="_blank">
+                    <span>🤖</span> DeepSeek AI 助手
+                </a>
+                <a href="https://github.com/xfbai1840-cool/Discovery_start-page/raw/refs/heads/main/Discovery%20lab_finance.exe" class="side-btn" download>
+                    <span>💰</span> 下载实验室财务系统
+                </a>
+            </div>
         </div>
 
-        <form action="https://www.bing.com/" method="get" target="_blank" class="search-box">
-            <input type="text" name="q" class="search-input" placeholder="Bing 搜索..." required>
-            <button type="submit" class="search-btn">🔍</button>
-        </form>
+        <div class="main-content">
+            
+            <div>
+                <h2 class="section-title">🧬 在线计算与设计工具</h2>
+                <div class="tools-grid">
+                    <a href="https://lna-aso-designer-ehaet5klwobcrjbsb8kjzm.streamlit.app/" class="tool-card" target="_blank">
+                        <div class="tool-icon">🚧</div>
+                        <div class="tool-info">
+                            <h4>LNA-ASO 智能路障设计</h4>
+                            <p>靶向核糖体移码元件的寡核苷酸 Tm 值计算与序列优化</p>
+                        </div>
+                    </a>
+                    
+                    </div>
+            </div>
 
-        <a href="https://drug-screen-tool-v10-dssqr5cvbbpfhx9ttaggov.streamlit.app/" class="btn" target="_blank">
-            <span>💊</span> FeliEase 药物筛选平台
-        </a>
+            <div>
+                <h2 class="section-title">💊 小分子药物筛选</h2>
+                <div class="tools-grid">
+                    <a href="https://drug-screen-tool-v10-dssqr5cvbbpfhx9ttaggov.streamlit.app/" class="tool-card" target="_blank">
+                        <div class="tool-icon">🧪</div>
+                        <div class="tool-info">
+                            <h4>FeliEase 筛选平台</h4>
+                            <p>高通量药物筛选数据处理与 IC50 可视化分析</p>
+                        </div>
+                    </a>
+                    
+                    <a href="https://ai-drug-analysis-randomforest-v10-6lstxt3ksps9cohbh8ffft.streamlit.app/" class="tool-card" target="_blank">
+                        <div class="tool-icon">🌲</div>
+                        <div class="tool-info">
+                            <h4>AI Random Forest</h4>
+                            <p>基于随机森林算法的化合物活性预测与特征分析</p>
+                        </div>
+                    </a>
 
-        <a href="https://ai-drug-analysis-randomforest-v10-6lstxt3ksps9cohbh8ffft.streamlit.app/" class="btn" target="_blank">
-            <span>🧬</span> AI Random Forest
-        </a>
+                    <a href="https://synergyfinder.aittokallio.group/2026020507153416634/" class="tool-card" target="_blank">
+                        <div class="tool-icon">🤝</div>
+                        <div class="tool-info">
+                            <h4>SynergyFinder</h4>
+                            <p>药物联合作用打分与协同效应矩阵分析</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
 
-        <a href="https://xfbai1840-cool-lung-fibrosis-analyzer-app-6lsmkn.streamlit.app/" class="btn" target="_blank">
-            <span>🔬</span> 肺纤维化病理自动评分
-        </a>
-        
-        <a href="https://synergyfinder.aittokallio.group/2026020507153416634/" class="btn" target="_blank">
-            <span>🐱</span> SynergyFinder
-        </a>
-        
-        <a href="https://chat.deepseek.com/" class="btn" target="_blank">
-            <span>🤖</span> DeepSeek
-        </a>
+            <div>
+                <h2 class="section-title">🔬 病理与实验数据辅助</h2>
+                <div class="tools-grid">
+                    <a href="https://xfbai1840-cool-lung-fibrosis-analyzer-app-6lsmkn.streamlit.app/" class="tool-card" target="_blank">
+                        <div class="tool-icon">🫁</div>
+                        <div class="tool-info">
+                            <h4>肺纤维化病理评分</h4>
+                            <p>病理切片自动评分与图像特征分析工具</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
 
-        <a href="https://github.com/xfbai1840-cool/Discovery_start-page/raw/refs/heads/main/Discovery%20lab_finance.exe" class="btn" download>
-            <span>💰</span> 下载财务管理系统 (.exe)
-        </a>    
-        
-        <div class="footer">
-            Targeting Viral RNA with Small Molecules
         </div>
     </div>
 
