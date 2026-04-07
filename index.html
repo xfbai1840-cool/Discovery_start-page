@@ -1,152 +1,393 @@
-import pandas as pd
-import streamlit as st
-import glob
-import os
-import io
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discovery 实验室科研工作台</title>
+    <style>
+        /* --- 基础设置 --- */
+        :root {
+            --primary-color: rgba(255, 255, 255, 0.1);
+            --hover-color: rgba(255, 255, 255, 0.2);
+            --text-main: rgba(255, 255, 255, 0.95);
+            --text-sub: rgba(255, 255, 255, 0.6);
+        }
 
-# 1. 网页基础设置
-st.set_page_config(page_title="实验室化合物智能匹配系统", page_icon="🧪", layout="wide")
-st.title("🧪 实验室化合物智能补全与匹配系统")
-st.markdown("上传您的查询表格，系统将自动在后台 MCE 数据库中进行无死角搜索，并为您补全 `Plate`、`Seat`、`ID`、`Name`、`CAS`、`MW`、`SMILES` 信息。")
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            min-height: 100vh;
+            display: flex;
+            background: linear-gradient(125deg, #0f0c29, #302b63, #24243e);
+            background-size: 400% 400%;
+            animation: deepScienceBG 15s ease infinite;
+            color: var(--text-main);
+        }
 
-# 2. 核心技术：使用缓存加载数据库
-@st.cache_data
-def load_master_db():
-    excel_files = glob.glob('*.xlsx')
-    db_files = [f for f in excel_files if ("Library" in f or "MCE" in f)]
-    
-    if not db_files:
-        return None, None, None, None
+        @keyframes deepScienceBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
 
-    dfs = []
-    for file in db_files:
-        try:
-            df = pd.read_excel(file, dtype=str)
-            if 'Plate' in df.columns:
-                # --- 核心更新：智能提取 #01 格式的板号 ---
-                is_hash = df['Plate'].astype(str).str.startswith('#')
-                if is_hash.any():
-                    # 提取出类似 "# 01" 的字眼，并去掉空格变成 "#01"
-                    df['Real_Plate'] = df['Plate'].apply(
-                        lambda x: str(x).split('-')[0].replace(' ', '') if str(x).startswith('#') else None
-                    )
-                    # 向下填充，把 #01 赋值给下面紧跟着的所有具体化合物行
-                    df['Real_Plate'] = df['Real_Plate'].ffill()
-                    # 删除掉多余的整句注释行
-                    df = df[~is_hash]
-                    # 用 #01 覆盖原来的 HYCPKxxx
-                    df['Plate'] = df['Real_Plate'].fillna(df['Plate'])
-                    df = df.drop(columns=['Real_Plate'])
-                else:
-                    # 如果没有带 # 的注释行，也清洗一下可能残留的注释
-                    df = df[~df['Plate'].astype(str).str.startswith('#')]
-                # ----------------------------------------
+        /* --- 整体布局：侧边栏 + 主内容区 --- */
+        .dashboard-container {
+            display: flex;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            gap: 30px;
+        }
+
+        /* --- 毛玻璃通用类 --- */
+        .glass-panel {
+            background: var(--primary-color);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* --- 左侧导航栏 --- */
+        .sidebar {
+            width: 300px;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+            height: calc(100vh - 100px);
+            position: sticky;
+            top: 20px;
+        }
+
+        .avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            margin-bottom: 15px;
+        }
+
+        .lab-name {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .lab-focus {
+            font-size: 12px;
+            color: #a8b2d1;
+            text-align: center;
+            margin-bottom: 30px;
+            line-height: 1.4;
+        }
+
+        .clock-container {
+            text-align: center;
+            margin-bottom: 30px;
+            width: 100%;
+            padding: 15px 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .time {
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+        
+        .date {
+            font-size: 13px;
+            color: var(--text-sub);
+            margin-top: 5px;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 8px 15px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .search-box:focus-within {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255,255,255,0.4);
+            transform: scale(1.02);
+        }
+
+        .search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .search-input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .search-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .sidebar-links {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .side-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            color: var(--text-main);
+            text-decoration: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .side-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        /* --- 右侧主内容区 --- */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            padding: 10px 0;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin: 0 0 15px 5px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+
+        /* 网格系统：根据屏幕宽度自动排列卡片 */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .tool-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 20px;
+            text-decoration: none;
+            color: var(--text-main);
+            border-radius: 16px;
+            background: var(--primary-color);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .tool-card:hover {
+            background: var(--hover-color);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        .tool-icon {
+            font-size: 28px;
+            background: rgba(255,255,255,0.1);
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+
+        .tool-info h4 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .tool-info p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--text-sub);
+            line-height: 1.4;
+        }
+
+        /* 响应式设计：手机端适配 */
+        @media (max-width: 900px) {
+            .dashboard-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                top: 0;
+                box-sizing: border-box;
+            }
+            .tools-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <div class="sidebar glass-panel">
+            <div class="avatar">🔬</div>
+            <div class="lab-name">Discovery Lab</div>
+            <div class="lab-focus">Targeting FIPV Ribosomal Frameshift<br>with Small Molecules</div>
+            
+            <div class="clock-container">
+                <div class="time" id="time">00:00</div>
+                <div class="date" id="date">载入中...</div>
+            </div>
+
+            <form action="https://www.bing.com/" method="get" target="_blank" class="search-box">
+                <input type="text" name="q" class="search-input" placeholder="文献 / 数据搜索..." required>
+                <button type="submit" class="search-btn">🔍</button>
+            </form>
+
+            <div class="sidebar-links">
+                <a href="https://chat.deepseek.com/" class="side-btn" target="_blank">
+                    <span>🤖</span> DeepSeek AI 助手
+                </a>
+                <a href="https://github.com/xfbai1840-cool/Discovery_start-page/raw/refs/heads/main/Discovery%20lab_finance.exe" class="side-btn" download>
+                    <span>💰</span> 下载实验室财务系统
+                </a>
+            </div>
+        </div>
+
+        <div class="main-content">
+            
+            <div>
+                <h2 class="section-title">🧬 在线计算与设计工具</h2>
+                <div class="tools-grid">
+                    <a href="https://lna-aso-designer-ehaet5klwobcrjbsb8kjzm.streamlit.app/" class="tool-card" target="_blank">
+                        <div class="tool-icon">🚧</div>
+                        <div class="tool-info">
+                            <h4>LNA-ASO 智能路障设计</h4>
+                            <p>靶向核糖体移码元件的寡核苷酸 Tm 值计算与序列优化</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="section-title">💊 小分子药物筛选</h2>
+                <div class="tools-grid">
+                    <a href="https://drug-screen-tool-v10-dssqr5cvbbpfhx9ttaggov.streamlit.app/" class="tool-card" target="_blank">
+                        <div class="tool-icon">🧪</div>
+                        <div class="tool-info">
+                            <h4>FeliEase 筛选平台 (抑制剂)</h4>
+                            <p>高通量数据处理：寻找引起信号下调的化合物</p>
+                        </div>
+                    </a>
+
+                    <a href="https://drug-screen-tool-v20-h6jswn5rzsahi4zdkbpcms.streamlit.app/" class="tool-card" target="_blank">
+                        <div class="tool-icon">📈</div>
+                        <div class="tool-info">
+                            <h4>FeliEase 筛选平台 (激活剂)</h4>
+                            <p>高通量数据处理：寻找引起信号上调的化合物</p>
+                        </div>
+                    </a>
                     
-            dfs.append(df)
-        except Exception as e:
-            st.error(f"读取文件 {file} 失败: {e}")
+                    <a href="https://ai-drug-analysis-randomforest-v10-6lstxt3ksps9cohbh8ffft.streamlit.app/" class="tool-card" target="_blank">
+                        <div class="tool-icon">🌲</div>
+                        <div class="tool-info">
+                            <h4>AI Random Forest</h4>
+                            <p>基于随机森林算法的化合物活性预测与特征分析</p>
+                        </div>
+                    </a>
 
-    if not dfs:
-        return None, None, None, None
-
-    master_df = pd.concat(dfs, ignore_index=True).drop_duplicates()
-    
-    # 建立极速哈希索引字典
-    master_records = master_df.to_dict('records')
-    cas_dict, id_dict, smiles_dict, plate_seat_dict = {}, {}, {}, {}
-
-    for row in master_records:
-        if pd.notna(row.get('CAS')): cas_dict[str(row['CAS']).strip()] = row
-        if pd.notna(row.get('ID')): id_dict[str(row['ID']).strip()] = row
-        if pd.notna(row.get('SMILES')): smiles_dict[str(row['SMILES']).strip()] = row
-        if pd.notna(row.get('Plate')) and pd.notna(row.get('Seat')):
-            ps_key = f"{str(row['Plate']).strip()}_{str(row['Seat']).strip()}"
-            plate_seat_dict[ps_key] = row
-            
-    return cas_dict, id_dict, smiles_dict, plate_seat_dict
-
-# 在后台静默加载数据库
-with st.spinner('系统正在初始化数据库，请稍候...'):
-    cas_dict, id_dict, smiles_dict, plate_seat_dict = load_master_db()
-
-if cas_dict is None:
-    st.error("⚠️ 未在后台找到 MCE 化合物库文件，请联系管理员检查服务器配置。")
-    st.stop()
-
-# 3. 网页前端：文件上传组件
-st.divider()
-uploaded_file = st.file_uploader("📥 第一步：请在此处上传您要查询的表格 (支持 .xlsx 或 .csv)", type=['xlsx', 'xls', 'csv'])
-
-if uploaded_file is not None:
-    try:
-        if uploaded_file.name.endswith('.csv'):
-            query_df = pd.read_csv(uploaded_file, dtype=str)
-        else:
-            query_df = pd.read_excel(uploaded_file, dtype=str)
-            
-        st.success("文件读取成功！正在进行智能扫描匹配...")
-        
-        # 4. 执行匹配逻辑
-        results = []
-        target_cols = ['Plate', 'Seat', 'ID', 'Name', 'CAS', 'MW', 'SMILES']
-        
-        progress_bar = st.progress(0)
-        total_rows = len(query_df)
-        
-        for index, row in query_df.iterrows():
-            row_dict = row.to_dict()
-            best_match = None
-
-            # a. Plate + Seat 精确匹配
-            if 'Plate' in row_dict and 'Seat' in row_dict:
-                plate_val = str(row_dict['Plate']).strip()
-                seat_val = str(row_dict['Seat']).strip()
-                ps_key = f"{plate_val}_{seat_val}"
-                if ps_key in plate_seat_dict:
-                    best_match = plate_seat_dict[ps_key]
-
-            # b. 全单元格盲扫模式
-            if not best_match:
-                for col_name, val in row_dict.items():
-                    if pd.isna(val): continue
-                    val_str = str(val).strip()
-                    if not val_str: continue
+                    <a href="https://synergyfinder.aittokallio.group/2026020507153416634/" class="tool-card" target="_blank">
+                        <div class="tool-icon">🤝</div>
+                        <div class="tool-info">
+                            <h4>SynergyFinder</h4>
+                            <p>药物联合作用打分与协同效应矩阵分析</p>
+                        </div>
+                    </a>
                     
-                    if val_str.upper() in ['CAS', 'VINA_SCORE', 'ID', 'SMILES', 'PLATE', 'SEAT', 'MW', 'NAME']:
-                        continue
-                        
-                    if val_str in cas_dict: best_match = cas_dict[val_str]; break
-                    elif val_str in id_dict: best_match = id_dict[val_str]; break
-                    elif val_str in smiles_dict: best_match = smiles_dict[val_str]; break
-            
-            # c. 数据融合及白名单过滤
-            if best_match:
-                for k, v in best_match.items():
-                    if k in target_cols:
-                        if k not in row_dict or pd.isna(row_dict.get(k)) or str(row_dict.get(k)).strip() in ['', 'nan']:
-                            row_dict[k] = v
-            results.append(row_dict)
-            
-            progress_bar.progress((index + 1) / total_rows)
+                    <a href="https://lab-compound-tool-mchjzt3qslkef4msq72m3m.streamlit.app/" class="tool-card" target="_blank">
+                        <div class="tool-icon">🗄️</div>
+                        <div class="tool-info">
+                            <h4>化合物智能匹配</h4>
+                            <p>上传表格自动盲搜，一键补全 CAS、SMILES、MW 等缺失信息</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
 
-        out_df = pd.DataFrame(results)
-        st.write("✅ **匹配完成！下方为结果预览：**")
-        st.dataframe(out_df.head(10))
+            <div>
+                <h2 class="section-title">🔬 病理与实验数据辅助</h2>
+                <div class="tools-grid">
+                    <a href="https://xfbai1840-cool-lung-fibrosis-analyzer-app-6lsmkn.streamlit.app/" class="tool-card" target="_blank">
+                        <div class="tool-icon">🫁</div>
+                        <div class="tool-info">
+                            <h4>肺纤维化病理评分</h4>
+                            <p>病理切片自动评分与图像特征分析工具</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
 
-        # 5. 生成 Excel 供用户下载
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            out_df.to_excel(writer, index=False, sheet_name='Matched_Results')
-        processed_data = output.getvalue()
+        </div>
+    </div>
 
-        st.divider()
-        st.download_button(
-            label="🎉 第二步：点击下载完整匹配结果 (Excel)",
-            data=processed_data,
-            file_name=f"Result_{uploaded_file.name}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            type="primary"
-        )
-        
-    except Exception as e:
-        st.error(f"处理文件时发生错误: {e}")
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const month = now.getMonth() + 1;
+            const day = now.getDate();
+            const weekArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+            const week = weekArr[now.getDay()];
+            document.getElementById('time').innerText = `${hours}:${minutes}`;
+            document.getElementById('date').innerText = `${month}月${day}日 · ${week}`;
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>
