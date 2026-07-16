@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="在浏览器本地完成免疫荧光图像的背景扣除、阈值分割与荧光强度定量。">
+  <meta name="theme-color" content="#071b1b">
+  <title>免疫荧光强度分析 · Discovery Lab</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="analyzer.css">
+</head>
+<body class="analyzer-page">
+  <div class="ambient ambient-one"></div>
+  <header class="site-header analyzer-header">
+    <a class="brand" href="index.html">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M12 8c6 5 10 7 16 12M28 8c-6 5-10 7-16 12m0 12c6-5 10-7 16-12m0 12c-6-5-10-7-16-12M15 11h10M12 20h16M15 29h10"/></svg></span>
+      <span><strong>Discovery</strong><small>IMAGE ANALYSIS</small></span>
+    </a>
+    <div class="header-status"><span></span> 所有分析均在本机完成</div>
+    <a class="back-link" href="index.html">← 返回工作台</a>
+  </header>
+
+  <main class="analyzer-shell">
+    <section class="analyzer-intro">
+      <div>
+        <p class="eyebrow"><span></span> IMMUNOFLUORESCENCE QUANTIFICATION</p>
+        <h1>免疫荧光<br><em>强度分析</em></h1>
+      </div>
+      <div class="intro-copy">
+        <p>上传一张荧光图，自动完成通道识别、背景估计、Otsu 阈值分割和阳性区域定量。结果包含分析参数，可直接导出用于统计与制图。</p>
+        <div class="privacy-pill">🔒 图片不会离开你的浏览器</div>
+      </div>
+    </section>
+
+    <section class="workflow" aria-label="分析流程">
+      <span class="step active"><b>01</b> 上传图像</span><i></i>
+      <span class="step"><b>02</b> 设置参数</span><i></i>
+      <span class="step"><b>03</b> 检查分割</span><i></i>
+      <span class="step"><b>04</b> 导出结果</span>
+    </section>
+
+    <section class="upload-card" id="uploadCard">
+      <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp" hidden>
+      <div class="upload-icon" aria-hidden="true"><span>＋</span></div>
+      <h2>拖放荧光图像到这里</h2>
+      <p>支持 PNG、JPEG、WebP · 建议使用无压缩 PNG 原图</p>
+      <button class="button primary" id="chooseButton" type="button">选择图像</button>
+      <small>为保证组间可比性，请使用相同曝光、增益和物镜采集所有图像</small>
+    </section>
+
+    <section class="workspace" id="workspace" hidden>
+      <aside class="control-panel panel">
+        <div class="panel-heading">
+          <div><small>ANALYSIS PARAMETERS</small><h2>分析参数</h2></div>
+          <button id="resetButton" class="text-button" type="button">重新上传</button>
+        </div>
+
+        <div class="file-summary">
+          <div class="file-thumb"><canvas id="thumbCanvas"></canvas></div>
+          <div><strong id="fileName">—</strong><span id="fileMeta">—</span></div>
+        </div>
+
+        <label class="field">
+          <span>目标荧光通道 <button class="help" type="button" data-tip="自动模式会选择动态范围最大的 RGB 通道；多重染色时请手动指定目标抗体对应通道。">?</button></span>
+          <select id="channelSelect">
+            <option value="auto">自动识别</option>
+            <option value="red">红色通道 (R)</option>
+            <option value="green">绿色通道 (G)</option>
+            <option value="blue">蓝色通道 (B)</option>
+            <option value="gray">灰度 / 明场</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>背景估计分位数 <output id="bgOutput">20%</output></span>
+          <input id="bgPercentile" type="range" min="1" max="45" value="20" step="1">
+          <small>以低强度像素的分位值估计均匀背景</small>
+        </label>
+
+        <div class="field">
+          <span>分割阈值</span>
+          <div class="segmented">
+            <button class="active" type="button" data-mode="auto">Otsu 自动</button>
+            <button type="button" data-mode="manual">手动</button>
+          </div>
+          <label class="manual-threshold" id="manualWrap" hidden>
+            <input id="manualThreshold" type="range" min="1" max="255" value="40" step="1">
+            <output id="thresholdOutput">40</output>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>最小阳性区域 <output id="areaOutput">20 px</output></span>
+          <input id="minArea" type="range" min="1" max="500" value="20" step="1">
+          <small>移除小于该面积的孤立噪点</small>
+        </label>
+
+        <label class="check-field"><input id="showMask" type="checkbox" checked><span>在结果图中显示阳性区域蒙版</span></label>
+        <button class="button primary analyze-button" id="analyzeButton" type="button">运行分析 <span>→</span></button>
+        <p class="control-note">参数调整后请重新运行。定量前请目视确认蒙版与真实阳性信号一致。</p>
+      </aside>
+
+      <div class="result-column">
+        <section class="viewer-panel panel">
+          <div class="panel-heading">
+            <div><small>SEGMENTATION PREVIEW</small><h2>分割检查</h2></div>
+            <div class="view-tabs" role="group">
+              <button class="active" type="button" data-view="overlay">叠加</button>
+              <button type="button" data-view="original">原图</button>
+              <button type="button" data-view="mask">蒙版</button>
+            </div>
+          </div>
+          <div class="canvas-stage" id="canvasStage">
+            <canvas id="resultCanvas"></canvas>
+            <div class="stage-loading" id="stageLoading" hidden><span></span>正在分析像素…</div>
+          </div>
+          <div class="viewer-legend"><span><i class="legend-signal"></i> 阳性信号</span><span id="viewerInfo">等待分析</span></div>
+        </section>
+
+        <section class="results-panel panel" id="resultsPanel" hidden>
+          <div class="panel-heading">
+            <div><small>QUANTITATIVE RESULTS</small><h2>定量结果</h2></div>
+            <span class="result-ready">● 分析完成</span>
+          </div>
+          <div class="metric-grid">
+            <article><span>平均荧光强度</span><strong id="metricMean">—</strong><small>背景扣除后 · a.u.</small></article>
+            <article><span>积分密度</span><strong id="metricIntDen">—</strong><small>阳性像素强度总和</small></article>
+            <article><span>阳性面积占比</span><strong id="metricArea">—</strong><small>阳性像素 / 全图</small></article>
+            <article><span>信噪比</span><strong id="metricSnr">—</strong><small>(信号均值 − 背景) / 背景 SD</small></article>
+          </div>
+          <div class="details-grid">
+            <div class="histogram-wrap"><h3>强度分布</h3><canvas id="histogramCanvas" width="600" height="230"></canvas><div class="axis-label"><span>0</span><span>背景扣除后强度 (a.u.)</span><span>255</span></div></div>
+            <div class="result-table-wrap"><h3>分析记录</h3><dl>
+              <div><dt>识别通道</dt><dd id="detailChannel">—</dd></div>
+              <div><dt>背景强度</dt><dd id="detailBg">—</dd></div>
+              <div><dt>分割阈值</dt><dd id="detailThreshold">—</dd></div>
+              <div><dt>阳性区域数</dt><dd id="detailObjects">—</dd></div>
+              <div><dt>阳性像素数</dt><dd id="detailPixels">—</dd></div>
+              <div><dt>图像尺寸</dt><dd id="detailSize">—</dd></div>
+            </dl></div>
+          </div>
+          <div class="export-row">
+            <button class="button primary" id="downloadCsv" type="button">导出 CSV 数据</button>
+            <button class="button secondary" id="downloadImage" type="button">导出结果图 PNG</button>
+            <button class="button secondary" id="downloadMethods" type="button">导出方法描述 TXT</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="science-note">
+      <div class="note-icon">i</div>
+      <div><h3>发表前请注意</h3><p>本工具提供全图、8-bit 浏览器解码后的相对荧光定量，适合在相同采集条件下比较组间差异。JPEG 压缩、饱和曝光和不同采集参数会影响结果；16-bit TIFF、复杂 ROI、细胞级分割或共定位分析建议使用 Fiji/ImageJ 等经验证流程。请在方法中报告通道、背景估计、阈值和最小区域参数。</p></div>
+    </section>
+  </main>
+  <script src="analyzer.js"></script>
+</body>
+</html>

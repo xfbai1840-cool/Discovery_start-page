@@ -1,399 +1,166 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discovery 实验室科研工作台</title>
-    <style>
-        /* --- 基础设置 --- */
-        :root {
-            --primary-color: rgba(255, 255, 255, 0.1);
-            --hover-color: rgba(255, 255, 255, 0.2);
-            --text-main: rgba(255, 255, 255, 0.95);
-            --text-sub: rgba(255, 255, 255, 0.6);
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-            min-height: 100vh;
-            display: flex;
-            background: linear-gradient(125deg, #0f0c29, #302b63, #24243e);
-            background-size: 400% 400%;
-            animation: deepScienceBG 15s ease infinite;
-            color: var(--text-main);
-        }
-
-        @keyframes deepScienceBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        /* --- 整体布局：侧边栏 + 主内容区 --- */
-        .dashboard-container {
-            display: flex;
-            width: 100%;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-            gap: 30px;
-        }
-
-        /* --- 毛玻璃通用类 --- */
-        .glass-panel {
-            background: var(--primary-color);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-        }
-
-        /* --- 左侧导航栏 --- */
-        .sidebar {
-            width: 300px;
-            padding: 30px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex-shrink: 0;
-            height: calc(100vh - 100px);
-            position: sticky;
-            top: 20px;
-        }
-
-        .avatar {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            background-color: rgba(255,255,255,0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            margin-bottom: 15px;
-        }
-
-        .lab-name {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 5px;
-            letter-spacing: 1px;
-        }
-
-        .lab-focus {
-            font-size: 12px;
-            color: #a8b2d1;
-            text-align: center;
-            margin-bottom: 30px;
-            line-height: 1.4;
-        }
-
-        .clock-container {
-            text-align: center;
-            margin-bottom: 30px;
-            width: 100%;
-            padding: 15px 0;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .time {
-            font-size: 36px;
-            font-weight: 700;
-            letter-spacing: 2px;
-        }
-        
-        .date {
-            font-size: 13px;
-            color: var(--text-sub);
-            margin-top: 5px;
-        }
-
-        .search-box {
-            display: flex;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 8px 15px;
-            width: 100%;
-            box-sizing: border-box;
-            margin-bottom: 30px;
-            transition: all 0.3s ease;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .search-box:focus-within {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255,255,255,0.4);
-            transform: scale(1.02);
-        }
-
-        .search-input {
-            flex: 1;
-            border: none;
-            background: transparent;
-            color: #fff;
-            font-size: 14px;
-            outline: none;
-        }
-
-        .search-input::placeholder {
-            color: rgba(255,255,255,0.5);
-        }
-
-        .search-btn {
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            color: #fff;
-            font-size: 16px;
-        }
-
-        .sidebar-links {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .side-btn {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 15px;
-            color: var(--text-main);
-            text-decoration: none;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.05);
-            transition: all 0.2s ease;
-            font-size: 14px;
-        }
-
-        .side-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateX(5px);
-        }
-
-        /* --- 右侧主内容区 --- */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-            padding: 10px 0;
-            overflow-y: auto;
-        }
-
-        .section-title {
-            font-size: 22px;
-            font-weight: 600;
-            margin: 0 0 15px 5px;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border-bottom: 2px solid rgba(255,255,255,0.1);
-            padding-bottom: 10px;
-        }
-
-        /* 网格系统：根据屏幕宽度自动排列卡片 */
-        .tools-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-        }
-
-        .tool-card {
-            display: flex;
-            align-items: flex-start;
-            gap: 15px;
-            padding: 20px;
-            text-decoration: none;
-            color: var(--text-main);
-            border-radius: 16px;
-            background: var(--primary-color);
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-
-        .tool-card:hover {
-            background: var(--hover-color);
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            border-color: rgba(255,255,255,0.3);
-        }
-
-        .tool-icon {
-            font-size: 28px;
-            background: rgba(255,255,255,0.1);
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 12px;
-            flex-shrink: 0;
-        }
-
-        .tool-info h4 {
-            margin: 0 0 5px 0;
-            font-size: 16px;
-            font-weight: 500;
-        }
-
-        .tool-info p {
-            margin: 0;
-            font-size: 12px;
-            color: var(--text-sub);
-            line-height: 1.4;
-        }
-
-        /* 响应式设计：手机端适配 */
-        @media (max-width: 900px) {
-            .dashboard-container {
-                flex-direction: column;
-            }
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-                top: 0;
-                box-sizing: border-box;
-            }
-            .tools-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Discovery Lab 科研工具工作台：实验设计、药物筛选、图像分析与实验室管理。">
+  <meta name="theme-color" content="#071b1b">
+  <title>Discovery Lab · 科研工作台</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
 
-    <div class="dashboard-container">
-        <div class="sidebar glass-panel">
-            <div class="avatar">🔬</div>
-            <div class="lab-name">Discovery Lab</div>
-            <div class="lab-focus">Targeting FIPV Ribosomal Frameshift<br>with Small Molecules</div>
-            
-            <div class="clock-container">
-                <div class="time" id="time">00:00</div>
-                <div class="date" id="date">载入中...</div>
-            </div>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Discovery Lab 首页">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 40 40"><path d="M12 8c6 5 10 7 16 12M28 8c-6 5-10 7-16 12m0 12c6-5 10-7 16-12m0 12c-6-5-10-7-16-12M15 11h10M12 20h16M15 29h10"/></svg>
+      </span>
+      <span><strong>Discovery</strong><small>LABORATORY</small></span>
+    </a>
+    <nav aria-label="主导航">
+      <a href="#tools">科研工具</a>
+      <a href="#focus">研究方向</a>
+      <a class="nav-cta" href="immunofluorescence.html">荧光分析</a>
+    </nav>
+  </header>
 
-            <form action="https://www.bing.com/" method="get" target="_blank" class="search-box">
-                <input type="text" name="q" class="search-input" placeholder="文献 / 数据搜索..." required>
-                <button type="submit" class="search-btn">🔍</button>
-            </form>
-
-            <div class="sidebar-links">
-                <a href="https://chat.deepseek.com/" class="side-btn" target="_blank">
-                    <span>🤖</span> DeepSeek AI 助手
-                </a>
-                <a href="https://github.com/xfbai1840-cool/Discovery_start-page/raw/refs/heads/main/Discovery%20lab_finance.exe" class="side-btn" download>
-                    <span>💰</span> 下载实验室财务系统
-                </a>
-            </div>
+  <main>
+    <section class="hero" id="focus">
+      <div class="hero-copy">
+        <p class="eyebrow"><span></span> DISCOVERY LAB · RESEARCH OS</p>
+        <h1>让每一次实验，<br><em>更快抵达答案。</em></h1>
+        <p class="hero-lead">聚焦猫传染性腹膜炎病毒核糖体移码机制与小分子干预，将实验设计、数据分析和科研工具集中在同一个工作台。</p>
+        <div class="hero-actions">
+          <a class="button primary" href="immunofluorescence.html">开始荧光定量 <span>→</span></a>
+          <a class="button secondary" href="#tools">浏览全部工具</a>
         </div>
-
-        <div class="main-content">
-            
-            <div>
-                <h2 class="section-title">🧬 在线计算与设计工具</h2>
-                <div class="tools-grid">
-                    <a href="https://lna-aso-designer-ehaet5klwobcrjbsb8kjzm.streamlit.app/" class="tool-card" target="_blank">
-                        <div class="tool-icon">🚧</div>
-                        <div class="tool-info">
-                            <h4>LNA-ASO 智能路障设计</h4>
-                            <p>靶向核糖体移码元件的寡核苷酸 Tm 值计算与序列优化</p>
-                        </div>
-                    </a>
-                </div>
-            </div>
-
-            <div>
-                <h2 class="section-title">💊 小分子药物筛选</h2>
-                <div class="tools-grid">
-                    <a href="https://drug-screen-tool-v10-dssqr5cvbbpfhx9ttaggov.streamlit.app/" class="tool-card" target="_blank">
-                        <div class="tool-icon">🧪</div>
-                        <div class="tool-info">
-                            <h4>FeliEase 筛选平台 (抑制剂)</h4>
-                            <p>高通量数据处理：寻找引起信号下调的化合物</p>
-                        </div>
-                    </a>
-
-                    <a href="https://drug-screen-tool-v20-h6jswn5rzsahi4zdkbpcms.streamlit.app/" class="tool-card" target="_blank">
-                        <div class="tool-icon">📈</div>
-                        <div class="tool-info">
-                            <h4>FeliEase 筛选平台 (激活剂)</h4>
-                            <p>高通量数据处理：寻找引起信号上调的化合物</p>
-                        </div>
-                    </a>
-<a href="https://feliease-app-xd9vqm3yjsi4ryx8ik8nff.streamlit.app/" class="tool-card" target="_blank" style="border: 1px solid rgba(0, 255, 255, 0.4); background: rgba(0, 255, 255, 0.05);">
-    <div class="tool-icon" style="background: rgba(0, 255, 255, 0.2);">📊</div>
-    <div class="tool-info">
-        <h4 style="color: #00fbff;">FeliEase 3.0 (双荧光重复版)</h4>
-        <p><strong>最新更新：</strong>支持 F/R 归一化、3次重复自动合并及 Z-score 显著性判读。</p>
-    </div>
-</a>                    
-                    <a href="https://ai-drug-analysis-randomforest-v10-6lstxt3ksps9cohbh8ffft.streamlit.app/" class="tool-card" target="_blank">
-                        <div class="tool-icon">🌲</div>
-                        <div class="tool-info">
-                            <h4>AI Random Forest</h4>
-                            <p>基于随机森林算法的化合物活性预测与特征分析</p>
-                        </div>
-                    </a>
-
-                    <a href="https://synergyfinder.aittokallio.group/2026020507153416634/" class="tool-card" target="_blank">
-                        <div class="tool-icon">🤝</div>
-                        <div class="tool-info">
-                            <h4>SynergyFinder</h4>
-                            <p>药物联合作用打分与协同效应矩阵分析</p>
-                        </div>
-                    </a>
-                    
-                    <a href="https://lab-compound-tool-mchjzt3qslkef4msq72m3m.streamlit.app/" class="tool-card" target="_blank">
-                        <div class="tool-icon">🗄️</div>
-                        <div class="tool-info">
-                            <h4>化合物智能匹配</h4>
-                            <p>上传表格自动盲搜，一键补全 CAS、SMILES、MW 等缺失信息</p>
-                        </div>
-                    </a>
-                </div>
-            </div>
-
-            <div>
-                <h2 class="section-title">🔬 病理与实验数据辅助</h2>
-                <div class="tools-grid">
-                    <a href="https://xfbai1840-cool-lung-fibrosis-analyzer-app-6lsmkn.streamlit.app/" class="tool-card" target="_blank">
-                        <div class="tool-icon">🫁</div>
-                        <div class="tool-info">
-                            <h4>肺纤维化病理评分</h4>
-                            <p>病理切片自动评分与图像特征分析工具</p>
-                        </div>
-                    </a>
-                </div>
-            </div>
-
+        <div class="hero-meta" aria-label="工作台特性">
+          <span><i></i> 本地数据处理</span>
+          <span><i></i> 可复现参数</span>
+          <span><i></i> 发表级导出</span>
         </div>
-    </div>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="scope-card">
+          <div class="scope-top"><span>LIVE · IF ANALYSIS</span><b>Discovery 01</b></div>
+          <div class="micrograph">
+            <span class="cell c1"></span><span class="cell c2"></span><span class="cell c3"></span>
+            <span class="cell c4"></span><span class="cell c5"></span><span class="cell c6"></span>
+            <div class="crosshair"></div>
+            <div class="scale">20 μm</div>
+          </div>
+          <div class="scope-stats">
+            <span><small>SIGNAL</small><strong>72.4</strong></span>
+            <span><small>AREA</small><strong>18.6%</strong></span>
+            <span><small>SNR</small><strong>8.31</strong></span>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <script>
-        function updateClock() {
-            const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const month = now.getMonth() + 1;
-            const day = now.getDate();
-            const weekArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-            const week = weekArr[now.getDay()];
-            document.getElementById('time').innerText = `${hours}:${minutes}`;
-            document.getElementById('date').innerText = `${month}月${day}日 · ${week}`;
-        }
-        updateClock();
-        setInterval(updateClock, 1000);
-    </script>
+    <section class="tool-section" id="tools">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow"><span></span> RESEARCH TOOLKIT</p>
+          <h2>科研工具，一站直达</h2>
+        </div>
+        <label class="tool-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg>
+          <input id="toolSearch" type="search" placeholder="搜索工具或功能…" autocomplete="off">
+        </label>
+      </div>
+
+      <div class="filter-row" role="group" aria-label="工具分类">
+        <button class="filter active" data-filter="all">全部</button>
+        <button class="filter" data-filter="design">序列设计</button>
+        <button class="filter" data-filter="screen">药物筛选</button>
+        <button class="filter" data-filter="analysis">数据分析</button>
+        <button class="filter" data-filter="manage">实验室管理</button>
+      </div>
+
+      <div class="tools-grid" id="toolGrid">
+        <a class="tool-card featured" data-category="analysis" data-search="免疫荧光 荧光强度 图像 定量 分析" href="immunofluorescence.html">
+          <div class="card-top"><span class="tool-icon mint">IF</span><span class="badge">NEW · 本地运行</span></div>
+          <h3>免疫荧光强度分析</h3>
+          <p>自动识别信号、扣除背景并计算平均荧光强度、积分密度、阳性面积与 SNR。</p>
+          <div class="card-footer"><span>图像定量</span><b>打开工具 →</b></div>
+        </a>
+
+        <a class="tool-card" data-category="design" data-search="LNA ASO 智能 路障 设计 Tm 序列" href="https://lna-aso-designer-ehaet5klwobcrjbsb8kjzm.streamlit.app/" target="_blank" rel="noopener">
+          <div class="card-top"><span class="tool-icon violet">ASO</span><span class="external">↗</span></div>
+          <h3>LNA-ASO 智能路障设计</h3>
+          <p>面向核糖体移码元件的寡核苷酸 Tm 计算与序列优化。</p>
+          <div class="card-footer"><span>序列设计</span><b>进入平台 →</b></div>
+        </a>
+
+        <a class="tool-card" data-category="screen" data-search="FeliEase 抑制剂 药物 筛选 下调" href="https://drug-screen-tool-v10-dssqr5cvbbpfhx9ttaggov.streamlit.app/" target="_blank" rel="noopener">
+          <div class="card-top"><span class="tool-icon blue">F↓</span><span class="external">↗</span></div>
+          <h3>FeliEase · 抑制剂筛选</h3>
+          <p>处理高通量数据，寻找引起报告信号显著下调的候选化合物。</p>
+          <div class="card-footer"><span>药物筛选</span><b>进入平台 →</b></div>
+        </a>
+
+        <a class="tool-card" data-category="screen" data-search="FeliEase 激活剂 药物 筛选 上调" href="https://drug-screen-tool-v20-h6jswn5rzsahi4zdkbpcms.streamlit.app/" target="_blank" rel="noopener">
+          <div class="card-top"><span class="tool-icon amber">F↑</span><span class="external">↗</span></div>
+          <h3>FeliEase · 激活剂筛选</h3>
+          <p>处理高通量数据，寻找引起报告信号显著上调的候选化合物。</p>
+          <div class="card-footer"><span>药物筛选</span><b>进入平台 →</b></div>
+        </a>
+
+        <a class="tool-card" data-category="analysis screen" data-search="FeliEase 3.0 双荧光 重复 F R Z-score" href="https://feliease-app-xd9vqm3yjsi4ryx8ik8nff.streamlit.app/" target="_blank" rel="noopener">
+          <div class="card-top"><span class="tool-icon rose">F3</span><span class="badge neutral">双荧光</span></div>
+          <h3>FeliEase 3.0</h3>
+          <p>支持 F/R 归一化、三次重复自动合并与 Z-score 显著性判读。</p>
+          <div class="card-footer"><span>数据分析</span><b>进入平台 →</b></div>
+        </a>
+
+        <a class="tool-card" data-category="analysis screen" data-search="AI Random Forest 随机森林 化合物 活性 预测" href="https://ai-drug-analysis-randomforest-v10-6lstxt3ksps9cohbh8ffft.streamlit.app/" target="_blank" rel="noopener">
+          <div class="card-top"><span class="tool-icon violet">AI</span><span class="external">↗</span></div>
+          <h3>AI Random Forest</h3>
+          <p>基于随机森林的化合物活性预测与特征贡献分析。</p>
+          <div class="card-footer"><span>机器学习</span><b>进入平台 →</b></div>
+        </a>
+
+        <a class="tool-card" data-category="analysis screen" data-search="SynergyFinder 药物 联合 协同 矩阵" href="https://synergyfinder.aittokallio.group/2026020507153416634/" target="_blank" rel="noopener">
+          <div class="card-top"><span class="tool-icon blue">S+</span><span class="external">↗</span></div>
+          <h3>SynergyFinder</h3>
+          <p>药物联合作用打分、协同效应矩阵与剂量响应分析。</p>
+          <div class="card-footer"><span>协同分析</span><b>进入平台 →</b></div>
+        </a>
+
+        <a class="tool-card" data-category="manage analysis" data-search="化合物 智能 匹配 CAS SMILES MW 表格" href="https://lab-compound-tool-mchjzt3qslkef4msq72m3m.streamlit.app/" target="_blank" rel="noopener">
+          <div class="card-top"><span class="tool-icon amber">DB</span><span class="external">↗</span></div>
+          <h3>化合物智能匹配</h3>
+          <p>上传表格自动盲搜，一键补齐 CAS、SMILES、分子量等信息。</p>
+          <div class="card-footer"><span>数据管理</span><b>进入平台 →</b></div>
+        </a>
+
+        <a class="tool-card" data-category="analysis" data-search="肺纤维化 病理 评分 图像 特征" href="https://xfbai1840-cool-lung-fibrosis-analyzer-app-6lsmkn.streamlit.app/" target="_blank" rel="noopener">
+          <div class="card-top"><span class="tool-icon rose">PA</span><span class="external">↗</span></div>
+          <h3>肺纤维化病理评分</h3>
+          <p>病理切片辅助评分与图像特征分析。</p>
+          <div class="card-footer"><span>病理分析</span><b>进入平台 →</b></div>
+        </a>
+
+        <a class="tool-card" data-category="manage" data-search="实验室 财务 系统 下载" href="https://github.com/xfbai1840-cool/Discovery_start-page/raw/refs/heads/main/Discovery%20lab_finance.exe">
+          <div class="card-top"><span class="tool-icon mint">¥</span><span class="badge neutral">Windows</span></div>
+          <h3>实验室财务系统</h3>
+          <p>实验室经费、采购与收支记录桌面工具。</p>
+          <div class="card-footer"><span>实验室管理</span><b>下载应用 ↓</b></div>
+        </a>
+      </div>
+      <p class="empty-state" id="emptyState" hidden>没有找到匹配的工具，请换一个关键词。</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="brand footer-brand"><span class="brand-mark" aria-hidden="true"></span><span><strong>Discovery Lab</strong><small>From questions to evidence.</small></span></div>
+    <p>科研工具仅用于研究与数据辅助分析。实验结论请结合原始数据与规范统计方法。</p>
+    <span id="localTime"></span>
+  </footer>
+
+  <script src="app.js"></script>
 </body>
 </html>
