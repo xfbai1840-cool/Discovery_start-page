@@ -2,6 +2,18 @@
 
 Discovery Lab 的静态科研门户，可直接部署到 GitHub Pages。首页集中展示实验室常用工具，并内置免疫荧光强度分析模块。
 
+## 分子生物学序列工具箱
+
+打开 `sequence-tools.html` 可在浏览器本地使用：
+
+- DNA 序列清洗、反向、互补、反向互补和 FASTA 格式化；
+- DNA 正负链 6 个读码框翻译；
+- 引物长度、GC、Tm、GC clamp 与同聚物快速检查；
+- EcoRI、BamHI、HindIII 等 12 种常用限制酶位点扫描；
+- 蛋白长度、估算分子量及氨基酸组成分析。
+
+输入的序列不会上传到服务器。
+
 ## 免疫荧光分析模块
 
 打开 `immunofluorescence.html`，上传 PNG、JPEG 或 WebP 图像即可在浏览器本地完成：
