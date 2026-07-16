@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="DNA 序列处理、翻译、引物分析、限制酶位点扫描和蛋白性质计算工具。">
+  <meta name="theme-color" content="#24243e">
+  <title>分子生物学序列工具箱 · Discovery Lab</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="sequence-tools.css">
+</head>
+<body class="sequence-page">
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M12 8c6 5 10 7 16 12M28 8c-6 5-10 7-16 12m0 12c6-5 10-7 16-12m0 12c-6-5-10-7-16-12M15 11h10M12 20h16M15 29h10"/></svg></span>
+      <span><strong>Discovery</strong><small>SEQUENCE TOOLKIT</small></span>
+    </a>
+    <div class="local-status"><i></i> 序列仅在本机处理</div>
+    <a class="back-link" href="index.html">← 返回工作台</a>
+  </header>
+
+  <main class="sequence-shell">
+    <section class="sequence-intro">
+      <div>
+        <p class="eyebrow"><span></span> MOLECULAR BIOLOGY UTILITIES</p>
+        <h1>序列处理，<br><em>简单而可靠。</em></h1>
+      </div>
+      <p>为日常分子生物学实验准备的轻量工具箱：清洗与转换 DNA 序列、翻译蛋白、检查引物、扫描酶切位点并计算蛋白基础性质。</p>
+    </section>
+
+    <section class="sequence-workspace">
+      <aside class="tool-nav panel" aria-label="序列工具导航">
+        <p>SEQUENCE TOOLS</p>
+        <button class="active" type="button" data-tool="dna"><span>01</span><b>DNA 序列处理</b><small>清洗 · 互补 · FASTA</small></button>
+        <button type="button" data-tool="translate"><span>02</span><b>DNA → 蛋白翻译</b><small>正负链 6 个读码框</small></button>
+        <button type="button" data-tool="primer"><span>03</span><b>引物快速分析</b><small>GC · Tm · 质量提示</small></button>
+        <button type="button" data-tool="digest"><span>04</span><b>限制酶位点扫描</b><small>常用酶 · 切割位置</small></button>
+        <button type="button" data-tool="protein"><span>05</span><b>蛋白性质计算</b><small>分子量 · 组成比例</small></button>
+        <div class="nav-note"><i>i</i><p>结果适合实验前快速检查。关键设计请结合专业软件与实验验证。</p></div>
+      </aside>
+
+      <div class="tool-content">
+        <section class="tool-pane panel active" data-pane="dna" id="dna">
+          <div class="pane-heading"><div><small>DNA UTILITIES</small><h2>DNA 序列处理</h2></div><span class="local-badge">LOCAL</span></div>
+          <label class="sequence-field"><span>输入 DNA 序列</span><textarea id="dnaInput" spellcheck="false" placeholder="粘贴原始序列或 FASTA；非 A/G/T/C 字符会被自动去除…"></textarea></label>
+          <div class="live-stats" aria-label="DNA 统计">
+            <span><small>有效碱基</small><strong id="dnaLength">0 bp</strong></span>
+            <span><small>GC 含量</small><strong id="dnaGc">0.00%</strong></span>
+            <span><small>估算 Tm</small><strong id="dnaTm">—</strong></span>
+            <span><small>已移除字符</small><strong id="dnaRemoved">0</strong></span>
+          </div>
+          <div class="action-grid">
+            <button type="button" data-dna-action="clean">清洗序列</button>
+            <button type="button" data-dna-action="reverse">反向</button>
+            <button type="button" data-dna-action="complement">互补</button>
+            <button type="button" data-dna-action="revcomp">反向互补</button>
+            <button type="button" data-dna-action="fasta">格式化 FASTA</button>
+          </div>
+          <label class="sequence-field output-field"><span>处理结果 <b id="dnaActionLabel">等待处理</b></span><textarea id="dnaOutput" readonly spellcheck="false" placeholder="结果将在这里显示"></textarea></label>
+          <div class="output-actions"><button type="button" data-copy-target="dnaOutput">复制结果</button><button type="button" id="downloadFasta">下载 FASTA</button></div>
+        </section>
+
+        <section class="tool-pane panel" data-pane="translate" id="translate">
+          <div class="pane-heading"><div><small>TRANSLATION</small><h2>DNA → 蛋白翻译</h2></div><span class="local-badge">STANDARD CODE</span></div>
+          <label class="sequence-field"><span>输入编码 DNA 序列</span><textarea id="translateInput" spellcheck="false" placeholder="例如：ATGGCCATTGTAATGGGCCGCTGA…"></textarea></label>
+          <div class="inline-controls">
+            <label><span>读码框</span><select id="readingFrame"><option value="1">正链 +1</option><option value="2">正链 +2</option><option value="3">正链 +3</option><option value="-1">负链 −1</option><option value="-2">负链 −2</option><option value="-3">负链 −3</option></select></label>
+            <label><span>终止密码子</span><select id="stopMode"><option value="mark">用 * 标记</option><option value="stop">在首个终止位点停止</option></select></label>
+            <button class="primary-tool-button" id="translateButton" type="button">开始翻译 →</button>
+          </div>
+          <div class="translation-summary" id="translationSummary">输入 DNA 后选择读码框进行翻译</div>
+          <label class="sequence-field output-field"><span>蛋白序列</span><textarea id="proteinOutput" readonly spellcheck="false" placeholder="翻译结果将在这里显示"></textarea></label>
+          <div class="output-actions"><button type="button" data-copy-target="proteinOutput">复制蛋白序列</button><button type="button" id="sendToProtein">发送到蛋白分析 →</button></div>
+        </section>
+
+        <section class="tool-pane panel" data-pane="primer" id="primer">
+          <div class="pane-heading"><div><small>PRIMER CHECK</small><h2>引物快速分析</h2></div><span class="local-badge">PCR</span></div>
+          <label class="sequence-field compact"><span>输入一条引物序列（5′ → 3′）</span><textarea id="primerInput" spellcheck="false" placeholder="AGTC…"></textarea></label>
+          <button class="primary-tool-button standalone" id="primerButton" type="button">分析引物 →</button>
+          <div class="metric-row" id="primerMetrics">
+            <article><span>长度</span><strong id="primerLength">—</strong><small>推荐 18–25 nt</small></article>
+            <article><span>GC%</span><strong id="primerGc">—</strong><small>推荐 40–60%</small></article>
+            <article><span>Tm</span><strong id="primerTm">—</strong><small>经验公式估算</small></article>
+            <article><span>3′ GC clamp</span><strong id="primerClamp">—</strong><small>末端 5 nt 中 G/C 数</small></article>
+          </div>
+          <div class="quality-box"><h3>设计提示</h3><ul id="primerAdvice"><li class="neutral">输入序列后开始分析。</li></ul></div>
+        </section>
+
+        <section class="tool-pane panel" data-pane="digest" id="digest">
+          <div class="pane-heading"><div><small>RESTRICTION MAP</small><h2>常用限制酶位点扫描</h2></div><span class="local-badge">12 ENZYMES</span></div>
+          <label class="sequence-field"><span>输入 DNA 序列</span><textarea id="digestInput" spellcheck="false" placeholder="粘贴质粒片段或目的基因序列…"></textarea></label>
+          <button class="primary-tool-button standalone" id="digestButton" type="button">扫描酶切位点 →</button>
+          <div class="digest-summary" id="digestSummary">等待扫描</div>
+          <div class="digest-table-wrap"><table><thead><tr><th>限制酶</th><th>识别序列</th><th>位点数量</th><th>起始位置（1-based）</th></tr></thead><tbody id="digestResults"><tr><td colspan="4">尚无结果</td></tr></tbody></table></div>
+        </section>
+
+        <section class="tool-pane panel" data-pane="protein" id="protein">
+          <div class="pane-heading"><div><small>PROTEIN PROPERTIES</small><h2>蛋白序列基础性质</h2></div><span class="local-badge">20 AA</span></div>
+          <label class="sequence-field"><span>输入单字母蛋白序列</span><textarea id="proteinInput" spellcheck="false" placeholder="粘贴蛋白序列；非标准氨基酸字符会被移除…"></textarea></label>
+          <button class="primary-tool-button standalone" id="proteinButton" type="button">计算蛋白性质 →</button>
+          <div class="metric-row protein-metrics">
+            <article><span>氨基酸长度</span><strong id="aaLength">—</strong><small>residues</small></article>
+            <article><span>估算分子量</span><strong id="aaMass">—</strong><small>平均分子量</small></article>
+            <article><span>疏水残基</span><strong id="aaHydrophobic">—</strong><small>AILMFWVY</small></article>
+            <article><span>芳香族残基</span><strong id="aaAromatic">—</strong><small>F/W/Y</small></article>
+          </div>
+          <div class="composition-box"><h3>氨基酸组成</h3><div id="aaComposition" class="composition-grid"><span>等待分析</span></div></div>
+        </section>
+      </div>
+    </section>
+  </main>
+  <div class="toast" id="sequenceToast"></div>
+  <script src="sequence-tools.js"></script>
+</body>
+</html>

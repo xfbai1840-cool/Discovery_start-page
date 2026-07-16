@@ -21,6 +21,7 @@
     </a>
     <nav aria-label="主导航">
       <a href="#tools">科研工具</a>
+      <a href="sequence-tools.html">序列工具</a>
       <a href="#focus">研究方向</a>
       <a class="nav-cta" href="immunofluorescence.html">荧光分析</a>
     </nav>
@@ -75,12 +76,34 @@
       <div class="filter-row" role="group" aria-label="工具分类">
         <button class="filter active" data-filter="all">全部</button>
         <button class="filter" data-filter="design">序列设计</button>
+        <button class="filter" data-filter="bio">分子生物学</button>
         <button class="filter" data-filter="screen">药物筛选</button>
         <button class="filter" data-filter="analysis">数据分析</button>
         <button class="filter" data-filter="manage">实验室管理</button>
       </div>
 
       <div class="tools-grid" id="toolGrid">
+        <a class="tool-card featured" data-category="bio design" data-search="DNA 序列 清洗 去除 非AGTC 反向 互补 反向互补 FASTA GC Tm" href="sequence-tools.html#dna">
+          <div class="card-top"><span class="tool-icon violet">DNA</span><span class="badge">NEW · 本地运行</span></div>
+          <h3>DNA 序列处理</h3>
+          <p>序列清洗、反向、互补、反向互补、FASTA 格式化及 GC/Tm 快速统计。</p>
+          <div class="card-footer"><span>分子生物学</span><b>打开工具 →</b></div>
+        </a>
+
+        <a class="tool-card" data-category="bio analysis" data-search="DNA 翻译 蛋白 氨基酸 ORF reading frame 读码框" href="sequence-tools.html#translate">
+          <div class="card-top"><span class="tool-icon blue">AA</span><span class="badge neutral">6 个读码框</span></div>
+          <h3>DNA → 蛋白翻译</h3>
+          <p>支持正负链 6 个读码框、标准遗传密码表和终止密码子标记。</p>
+          <div class="card-footer"><span>序列分析</span><b>打开工具 →</b></div>
+        </a>
+
+        <a class="tool-card" data-category="bio design" data-search="引物 Primer GC Tm 限制性内切酶 酶切 位点 蛋白 分子量" href="sequence-tools.html#primer">
+          <div class="card-top"><span class="tool-icon amber">PCR</span><span class="badge neutral">Primer · Enzyme</span></div>
+          <h3>引物与酶切位点分析</h3>
+          <p>快速计算引物 GC/Tm、检查 GC clamp 与同聚物，并扫描常用限制酶位点。</p>
+          <div class="card-footer"><span>实验设计</span><b>打开工具 →</b></div>
+        </a>
+
         <a class="tool-card featured" data-category="analysis" data-search="免疫荧光 荧光强度 图像 定量 分析" href="immunofluorescence.html">
           <div class="card-top"><span class="tool-icon mint">IF</span><span class="badge">NEW · 本地运行</span></div>
           <h3>免疫荧光强度分析</h3>
