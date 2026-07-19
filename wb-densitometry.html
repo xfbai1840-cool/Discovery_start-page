@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="浏览器本地 Western blot 条带灰度与积分密度分析。"><meta name="theme-color" content="#24243e">
+  <title>WB 条带灰度分析 · Discovery Lab</title>
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="image-tools.css">
+</head>
+<body class="image-tool-page">
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <header class="site-header">
+    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M12 8c6 5 10 7 16 12M28 8c-6 5-10 7-16 12m0 12c6-5 10-7 16-12m0 12c-6-5-10-7-16-12M15 11h10M12 20h16M15 29h10"/></svg></span><span><strong>Discovery</strong><small>WB DENSITOMETRY</small></span></a>
+    <div class="local-status"><i></i> 图像仅在本机处理</div><a class="back-link" href="index.html">← 返回工作台</a>
+  </header>
+  <main class="image-tool-shell">
+    <section class="tool-intro"><div><p class="eyebrow"><span></span> WESTERN BLOT QUANTIFICATION</p><h1>WB 条带<br><em>灰度分析</em></h1></div><div><p>框选每条蛋白条带，工具会从 ROI 外围环带估计局部背景，并计算背景校正积分密度。选择参考条带后可直接获得相对归一化值。</p><div class="privacy-line"><i></i> 原始图像不会上传服务器</div></div></section>
+
+    <section class="image-upload" id="wbUpload"><input id="wbFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><div class="upload-symbol">＋</div><h2>拖放 WB 图像到这里</h2><p>支持 PNG、JPEG、WebP · 推荐使用未过曝的原始灰度图</p><button class="button primary" id="wbChoose" type="button">选择图像</button><small>请勿使用经过自动对比度、局部增强或非线性调整的图片进行定量</small></section>
+
+    <section class="image-workspace" id="wbWorkspace" hidden>
+      <aside class="control-sidebar image-panel">
+        <div class="panel-title"><div><small>MEASUREMENT SETTINGS</small><h2>测量设置</h2></div><button class="text-button" id="wbReset" type="button">重新上传</button></div>
+        <div class="file-chip"><canvas id="wbThumb"></canvas><div><strong id="wbFileName">—</strong><span id="wbFileMeta">—</span></div></div>
+        <label class="control-field"><span>条带信号类型</span><select id="wbPolarity"><option value="dark">深色条带 / 浅色背景</option><option value="light">浅色条带 / 深色背景</option></select></label>
+        <label class="control-field"><span>下一个条带名称</span><input id="wbLabel" type="text" placeholder="例如：Target_1"></label>
+        <label class="control-field"><span>局部背景环宽 <output id="wbRingOut">20%</output></span><input id="wbRing" type="range" min="5" max="60" value="20" step="5"><small>以 ROI 较短边的百分比向外扩展背景环</small></label>
+        <div class="tip-box"><b>操作方法：</b>在图中按住鼠标拖动画出矩形，松开后即添加一条测量记录。各条带应使用相同大小的 ROI。</div>
+        <div class="secondary-actions"><button id="wbUndo" type="button">撤销上一条</button><button id="wbClear" type="button">清空全部</button></div>
+        <p class="side-note">调整信号类型或背景环宽后，现有 ROI 会自动重新计算。</p>
+      </aside>
+
+      <div class="image-results">
+        <section class="viewer-card image-panel"><div class="viewer-head"><div><small>ROI SELECTION</small><h2>条带框选</h2></div><div class="viewer-hint">拖动框选 · 建议包含完整条带并避开相邻信号</div></div><div class="canvas-wrap"><canvas id="wbCanvas"></canvas></div><div class="viewer-footer"><span><i class="legend-dot"></i> 测量 ROI 与局部背景环</span><span id="wbViewerInfo">等待框选</span></div></section>
+        <section class="data-card image-panel"><div class="data-card-head"><h2>灰度测量结果</h2><label class="reference-control">归一化参考<select id="wbReference"><option value="">未选择</option></select></label></div>
+          <div class="metric-strip"><article><span>已测条带</span><strong id="wbCount">0</strong><small>ROI 数量</small></article><article><span>参考条带</span><strong id="wbRefName">—</strong><small>归一化 = 1.000</small></article><article><span>平均 ROI 面积</span><strong id="wbAvgArea">—</strong><small>pixel²</small></article><article><span>背景方式</span><strong>Local</strong><small>ROI 外围环带</small></article></div>
+          <div class="table-scroll"><table class="result-table"><thead><tr><th>#</th><th>名称</th><th>面积</th><th>平均原始灰度</th><th>背景信号</th><th>校正积分密度</th><th>校正平均强度</th><th>相对值</th><th></th></tr></thead><tbody id="wbRows"><tr><td colspan="9">在图像中框选条带后显示结果</td></tr></tbody></table></div>
+          <div class="export-actions"><button id="wbCsv" type="button">导出 CSV</button><button id="wbPng" type="button">导出标注图 PNG</button><button id="wbMethods" type="button">导出方法描述 TXT</button></div>
+        </section>
+      </div>
+    </section>
+    <section class="science-warning"><b>!</b><div><h3>定量与发表注意事项</h3><p>仅比较在线性曝光范围内、相同采集条件下获得的原始图像。目标蛋白通常应先除以内参蛋白，再相对于对照组归一化；本页的“参考条带”仅提供单一强度比值，不能代替成对的目标/内参计算。发表前请保存原始图、ROI 规则及完整数据表。</p></div></section>
+  </main><div class="toast" id="wbToast"></div><script src="wb-densitometry.js"></script>
+</body></html>
