@@ -13,7 +13,7 @@
     <div class="local-status"><i></i> 图像仅在本机处理</div><a class="back-link" href="index.html">← 返回工作台</a>
   </header>
   <main class="image-tool-shell">
-    <section class="tool-intro"><div><p class="eyebrow"><span></span> MICROBIOLOGY IMAGE COUNTING</p><h1>菌落与噬斑<br><em>自动计数</em></h1></div><div><p>自动分割培养皿中的细菌菌落或病毒噬斑，并按粒径与圆度过滤。检测结果可点击增删修正，还可结合稀释倍数和接种体积估算 CFU/PFU·mL⁻¹。</p><div class="privacy-line"><i></i> 图片和实验参数不会离开浏览器</div></div></section>
+    <section class="tool-intro"><div><p class="eyebrow"><span></span> MICROBIOLOGY IMAGE COUNTING</p><h1>菌落与噬斑<br><em>自动计数</em></h1></div><div><p>支持培养皿及 6、12、24、48、96 孔板，自动分割各孔中的细菌菌落或病毒噬斑。检测结果可逐孔汇总、手动增删，并结合稀释倍数与接种体积估算 CFU/PFU·mL⁻¹。</p><div class="privacy-line"><i></i> 图片和实验参数不会离开浏览器</div></div></section>
 
     <section class="image-upload" id="colonyUpload"><input id="colonyFile" type="file" accept="image/png,image/jpeg,image/webp" hidden><div class="upload-symbol">＋</div><h2>拖放培养皿图像到这里</h2><p>支持 PNG、JPEG、WebP · 建议使用垂直拍摄、光照均匀的完整培养皿</p><button class="button primary" id="colonyChoose" type="button">选择图像</button><small>避免强烈反光、培养皿边缘缺失和复杂纹理背景</small></section>
 
@@ -21,29 +21,32 @@
       <aside class="control-sidebar image-panel">
         <div class="panel-title"><div><small>DETECTION SETTINGS</small><h2>识别参数</h2></div><button class="text-button" id="colonyReset" type="button">重新上传</button></div>
         <div class="file-chip"><canvas id="colonyThumb"></canvas><div><strong id="colonyFileName">—</strong><span id="colonyFileMeta">—</span></div></div>
+        <div class="compact-fields"><label class="control-field"><span>容器类型</span><select id="containerType"><option value="dish">培养皿</option><option value="6">6 孔板</option><option value="12">12 孔板</option><option value="24">24 孔板</option><option value="48">48 孔板</option><option value="96">96 孔板</option></select></label><label class="control-field"><span>板方向</span><select id="plateOrientation"><option value="landscape">横向</option><option value="portrait">顺时针旋转 90°</option></select></label></div>
         <label class="control-field"><span>目标类型</span><select id="objectPolarity"><option value="dark">深色菌落 / 浅色培养基</option><option value="light">浅色菌落或噬斑 / 深色背景</option></select></label>
-        <label class="control-field"><span>培养皿分析直径 <output id="plateScaleOut">92%</output></span><input id="plateScale" type="range" min="45" max="100" value="92" step="1"></label>
+        <div class="compact-fields"><label class="control-field"><span>区域宽度 <output id="regionWidthOut">92%</output></span><input id="regionWidth" type="range" min="35" max="100" value="92" step="1"></label><label class="control-field"><span>区域高度 <output id="regionHeightOut">92%</output></span><input id="regionHeight" type="range" min="35" max="100" value="92" step="1"></label></div>
         <div class="compact-fields"><label class="control-field"><span>圆心 X <output id="plateXOut">50%</output></span><input id="plateX" type="range" min="20" max="80" value="50"></label><label class="control-field"><span>圆心 Y <output id="plateYOut">50%</output></span><input id="plateY" type="range" min="20" max="80" value="50"></label></div>
+        <label class="control-field" id="wellScaleField"><span>孔径占网格 <output id="wellScaleOut">84%</output></span><input id="wellScale" type="range" min="55" max="98" value="84" step="1"><small>调节各孔圆形分析范围，避免包含孔壁和板面反光</small></label>
         <label class="control-field"><span>自动阈值微调 <output id="thresholdOffsetOut">0</output></span><input id="thresholdOffset" type="range" min="-80" max="80" value="0" step="1"><small>正值提高灰度阈值；更改后重新运行识别</small></label>
         <div class="compact-fields"><label class="control-field"><span>最小直径</span><input id="minDiameter" type="number" min="1" max="500" value="6"><small>分析图像像素</small></label><label class="control-field"><span>最大直径</span><input id="maxDiameter" type="number" min="2" max="1000" value="90"><small>分析图像像素</small></label></div>
         <label class="control-field"><span>形状筛选</span><select id="roundness"><option value="0.05">宽松（不规则菌落）</option><option value="0.15" selected>标准</option><option value="0.35">严格（近圆形）</option></select></label>
         <button class="primary-action" id="countButton" type="button">运行自动计数 →</button>
         <div class="secondary-actions"><button id="restoreCount" type="button">恢复自动结果</button><button id="clearCount" type="button">清空识别点</button></div>
-        <div class="tip-box"><b>手动校正：</b>自动计数后，点击已有圆圈可删除误识别；点击空白位置可补加漏检菌落或噬斑。</div>
+        <div class="tip-box"><b>手动校正：</b>先让所有圆形边界与实际孔位重合，再运行计数。点击已有圆圈可删除误识别；点击孔内空白位置可补加漏检对象。</div>
       </aside>
 
       <div class="image-results">
         <section class="viewer-card image-panel"><div class="viewer-head"><div><small>DETECTION PREVIEW</small><h2>计数检查</h2></div><span class="status-pill" id="countStatus">等待分析</span></div><div class="canvas-wrap"><canvas id="colonyCanvas"></canvas><div class="busy-overlay" id="countBusy" hidden><i></i>正在分割和统计对象…</div></div><div class="viewer-footer"><span><i class="legend-dot"></i> 圆圈表示已计数对象</span><span id="colonyViewerInfo">培养皿边界可在左侧调整</span></div></section>
         <section class="data-card image-panel">
           <div class="data-card-head"><h2>计数与浓度结果</h2><span class="status-pill">CFU / PFU</span></div>
-          <div class="metric-strip"><article><span>对象总数</span><strong id="totalObjects">0</strong><small>手动校正后</small></article><article><span>平均直径</span><strong id="averageDiameter">—</strong><small>分析图像像素</small></article><article><span>平板密度</span><strong id="plateDensity">—</strong><small>个 / cm²</small></article><article><span>估算原液浓度</span><strong id="cultureConcentration">—</strong><small>CFU/PFU · mL⁻¹</small></article></div>
-          <div class="compact-fields calculation-fields"><label class="control-field"><span>培养皿直径（mm）</span><input id="plateDiameterMm" type="number" min="1" value="90" step="1"></label><label class="control-field"><span>接种体积（mL）</span><input id="platedVolume" type="number" min="0.001" value="0.1" step="0.01"></label></div>
+          <div class="metric-strip"><article><span>对象总数</span><strong id="totalObjects">0</strong><small>手动校正后</small></article><article><span id="meanCountLabel">平均直径</span><strong id="averageDiameter">—</strong><small id="meanCountUnit">分析图像像素</small></article><article><span>分析区密度</span><strong id="plateDensity">—</strong><small>个 / cm²</small></article><article><span id="concentrationLabel">估算原液浓度</span><strong id="cultureConcentration">—</strong><small>CFU/PFU · mL⁻¹</small></article></div>
+          <div class="compact-fields calculation-fields"><label class="control-field"><span id="physicalDiameterLabel">培养皿直径（mm）</span><input id="plateDiameterMm" type="number" min="1" value="90" step="0.1"></label><label class="control-field"><span id="volumeLabel">接种体积（mL）</span><input id="platedVolume" type="number" min="0.001" value="0.1" step="0.01"></label></div>
           <label class="control-field"><span>样品稀释指数（10ⁿ） <output id="dilutionExample">当前：10⁻⁶</output></span><input id="dilutionExponent" type="range" min="-12" max="0" value="-6" step="1"><small>例如 10⁻⁶ 稀释液输入 −6；原液输入 0</small></label>
           <div class="table-scroll"><table class="result-table"><thead><tr><th>自动识别</th><th>手动添加</th><th>手动删除</th><th>Otsu 阈值</th><th>应用阈值</th><th>分析分辨率</th></tr></thead><tbody><tr><td id="autoCount">0</td><td id="manualAdded">0</td><td id="manualRemoved">0</td><td id="otsuValue">—</td><td id="appliedThreshold">—</td><td id="analysisSize">—</td></tr></tbody></table></div>
+          <div class="well-summary" id="wellSummary" hidden><div class="well-summary-head"><h3>逐孔计数</h3><span id="wellSummaryText">—</span></div><div class="well-count-grid" id="wellCountGrid"></div></div>
           <div class="export-actions"><button id="colonyCsv" type="button">导出 CSV</button><button id="colonyPng" type="button">导出标注图 PNG</button><button id="colonyMethods" type="button">导出方法描述 TXT</button></div>
         </section>
       </div>
     </section>
-    <section class="science-warning"><b>!</b><div><h3>计数与浓度解释</h3><p>自动识别适合背景均匀、对象彼此分离的培养皿。融合菌落、重叠噬斑、气泡、反光和污染可能导致误计，必须逐一检查并手动修正。CFU/PFU·mL⁻¹ = 计数 ÷（接种体积 × 稀释倍数）；过密平板不宜用于可靠浓度估算。</p></div></section>
+    <section class="science-warning"><b>!</b><div><h3>计数与浓度解释</h3><p>自动识别适合背景均匀、对象彼此分离的培养皿或孔板。融合菌落、重叠噬斑、孔壁反光、气泡和污染可能导致误计，必须逐孔检查并手动修正。培养皿浓度按总计数计算；多孔板浓度按平均每孔计数计算，前提是各孔为同一样品的技术重复且稀释倍数、接种体积一致。</p></div></section>
   </main><div class="toast" id="colonyToast"></div><script src="colony-counter.js"></script>
 </body></html>
