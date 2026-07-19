@@ -26,6 +26,7 @@ function formatBytes(bytes) { return bytes < 1048576 ? `${(bytes / 1024).toFixed
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function detections() { return [...state.auto.filter(item => !state.removed.has(item.id)), ...state.manual]; }
 function isMultiwell() { return $('#containerType').value !== 'dish'; }
+function isPlaqueMode() { return $('#objectMode').value === 'plaque'; }
 
 function currentLayout() {
   const type = $('#containerType').value;
@@ -148,8 +149,8 @@ function configureContainer() {
   const multi = layout.type !== 'dish';
   $('#wellScaleField').hidden = !multi;
   $('#plateOrientation').disabled = !multi;
-  $('#regionWidth').value = multi ? 94 : 92;
-  $('#regionHeight').value = multi ? 86 : 92;
+  $('#regionWidth').value = multi ? 84 : 92;
+  $('#regionHeight').value = multi ? 84 : 92;
   $('#regionWidthOut').textContent = `${$('#regionWidth').value}%`;
   $('#regionHeightOut').textContent = `${$('#regionHeight').value}%`;
   $('#plateDiameterMm').value = layout.diameterMm;
@@ -163,7 +164,23 @@ function configureContainer() {
 configureContainer();
 
 $('#thresholdOffset').addEventListener('input', event => { $('#thresholdOffsetOut').textContent = event.target.value; markDirty(); });
-['objectPolarity', 'minDiameter', 'maxDiameter', 'roundness'].forEach(id => $('#' + id).addEventListener('change', markDirty));
+['minDiameter', 'maxDiameter', 'roundness', 'skipUnstained'].forEach(id => $('#' + id).addEventListener('change', markDirty));
+$('#peakSpacing').addEventListener('input', event => { $('#peakSpacingOut').textContent = `${event.target.value} px`; markDirty(); });
+$('#stainCutoff').addEventListener('input', event => { $('#stainCutoffOut').textContent = event.target.value; markDirty(); });
+$('#objectMode').addEventListener('change', applyModePreset);
+function applyModePreset() {
+  const plaque = isPlaqueMode();
+  $('#plaqueFilters').hidden = !plaque;
+  $('#componentFilters').hidden = plaque;
+  $('#thresholdOffset').value = plaque ? 20 : 0;
+  $('#thresholdOffsetOut').textContent = $('#thresholdOffset').value;
+  $('#modeHelp').textContent = plaque
+    ? '专门识别结晶紫或蓝紫细胞层中的高亮微小白点'
+    : ($('#objectMode').value === 'light' ? '按灰度识别浅色、彼此分离的较大对象' : '按灰度识别浅色培养基上的深色菌落');
+  if (state.analysis) resetResults();
+  renderAll();
+}
+applyModePreset();
 function markDirty() { if (state.analysis) $('#countStatus').textContent = '参数已更改 · 请重新计数'; }
 
 $('#countButton').addEventListener('click', () => {
@@ -203,32 +220,46 @@ function buildRegionMap(regions) {
 function runCounting() {
   const regions = analysisRegions();
   const layout = currentLayout();
+  const plaqueMode = isPlaqueMode();
   const count = state.width * state.height;
   const data = state.imageData.data;
   const values = new Uint8Array(count);
   const regionMap = buildRegionMap(regions);
   const histograms = regions.map(() => new Uint32Array(256));
   const totals = new Uint32Array(regions.length);
+  const chromaSums = new Float64Array(regions.length);
   for (let index = 0; index < count; index++) {
     const p = index * 4;
-    const value = Math.round(.2126 * data[p] + .7152 * data[p + 1] + .0722 * data[p + 2]);
+    const red = data[p], green = data[p + 1], blue = data[p + 2];
+    const value = plaqueMode ? Math.min(red, green, blue) : Math.round(.2126 * red + .7152 * green + .0722 * blue);
     values[index] = value;
     const regionCode = regionMap[index];
-    if (regionCode) { histograms[regionCode - 1][value]++; totals[regionCode - 1]++; }
+    if (regionCode) {
+      const regionIndex = regionCode - 1;
+      histograms[regionIndex][value]++;
+      totals[regionIndex]++;
+      chromaSums[regionIndex] += Math.max(red, green, blue) - Math.min(red, green, blue);
+    }
   }
+  const meanChroma = regions.map((_, index) => totals[index] ? chromaSums[index] / totals[index] : 0);
+  const skipUnstained = plaqueMode && $('#skipUnstained').checked;
+  const stainCutoff = Number($('#stainCutoff').value);
+  const active = regions.map((_, index) => !skipUnstained || meanChroma[index] >= stainCutoff);
   const offset = Number($('#thresholdOffset').value);
   const otsuValues = histograms.map((histogram, index) => otsuThreshold(histogram, totals[index]));
   const thresholds = otsuValues.map(value => clamp(value + offset, 1, 254));
-  const dark = $('#objectPolarity').value === 'dark';
+  const dark = $('#objectMode').value === 'dark';
   const mask = new Uint8Array(count);
   for (let index = 0; index < count; index++) {
     const regionCode = regionMap[index];
-    if (regionCode) mask[index] = dark ? values[index] < thresholds[regionCode - 1] : values[index] > thresholds[regionCode - 1];
+    if (regionCode && active[regionCode - 1]) mask[index] = dark ? values[index] < thresholds[regionCode - 1] : values[index] > thresholds[regionCode - 1];
   }
   const minDiameter = Math.max(1, Number($('#minDiameter').value));
   const maxDiameter = Math.max(minDiameter, Number($('#maxDiameter').value));
   const roundness = Number($('#roundness').value);
-  state.auto = detectComponents(mask, state.width, state.height, minDiameter, maxDiameter, roundness);
+  state.auto = plaqueMode
+    ? detectPeaks(values, regionMap, thresholds, regions, state.width, state.height, Number($('#peakSpacing').value), active)
+    : detectComponents(mask, state.width, state.height, minDiameter, maxDiameter, roundness);
   state.auto.forEach((item, index) => {
     item.id = `auto_${index + 1}`;
     item.well = regionAtPoint(item.x, item.y, regions)?.label || '';
@@ -237,11 +268,51 @@ function runCounting() {
   state.removed = new Set();
   state.nextManual = 1;
   const average = array => array.reduce((sum, value) => sum + value, 0) / Math.max(1, array.length);
+  const activeOtsu = otsuValues.filter((_, index) => active[index]);
+  const activeThresholds = thresholds.filter((_, index) => active[index]);
   state.analysis = {
     automatic: state.auto.length, regions, rows: layout.rows, cols: layout.cols,
-    otsu: average(otsuValues), threshold: average(thresholds), otsuValues, thresholds
+    mode: $('#objectMode').value, active, activeLabels: regions.filter((_, index) => active[index]).map(region => region.label),
+    meanChroma, otsu: average(activeOtsu), threshold: average(activeThresholds), otsuValues, thresholds
   };
   renderAll();
+}
+
+function detectPeaks(values, regionMap, thresholds, regions, width, height, spacing, active) {
+  const scoreCounts = new Uint32Array(256);
+  let candidateCount = 0;
+  for (let index = 0; index < values.length; index++) {
+    const regionCode = regionMap[index];
+    if (regionCode && active[regionCode - 1] && values[index] > thresholds[regionCode - 1]) {
+      scoreCounts[values[index]]++;
+      candidateCount++;
+    }
+  }
+  const starts = new Uint32Array(256);
+  for (let score = 1; score < 256; score++) starts[score] = starts[score - 1] + scoreCounts[score - 1];
+  const cursors = starts.slice();
+  const ordered = new Int32Array(candidateCount);
+  for (let index = 0; index < values.length; index++) {
+    const regionCode = regionMap[index];
+    if (regionCode && active[regionCode - 1] && values[index] > thresholds[regionCode - 1]) ordered[cursors[values[index]]++] = index;
+  }
+  const blocked = new Uint8Array(values.length);
+  const found = [];
+  const radius = Math.max(1, Math.round(spacing));
+  for (let order = ordered.length - 1; order >= 0; order--) {
+    const index = ordered[order];
+    if (blocked[index]) continue;
+    const x = index % width, y = (index / width) | 0, regionIndex = regionMap[index] - 1;
+    found.push({ x, y, area: 1, diameter: radius * 2 + 1, circularity: 1, score: values[index], well: regions[regionIndex].label, manual: false });
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        if (dx * dx + dy * dy > radius * radius) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height) blocked[ny * width + nx] = 1;
+      }
+    }
+  }
+  return found;
 }
 
 function otsuThreshold(histogram, total) {
@@ -299,6 +370,7 @@ canvas.addEventListener('click', event => {
   const point = pointFromEvent(event);
   const well = regionAtPoint(point.x, point.y);
   if (!well) return toast('点击位置在所有分析孔范围外');
+  if (!state.analysis.activeLabels.includes(well.label)) return toast(`${well.label} 被判定为未染色空孔；如需分析请关闭“自动跳过”后重新计数`);
   const all = detections();
   let nearest = null, distance = Infinity;
   all.forEach(item => { const d = Math.hypot(item.x - point.x, item.y - point.y); if (d < distance) { distance = d; nearest = item; } });
@@ -324,16 +396,18 @@ function drawCanvas() {
   context.lineWidth = line * 1.3;
   context.font = `600 ${Math.max(10, state.width / 100)}px sans-serif`;
   context.textAlign = 'center'; context.textBaseline = 'middle';
+  const activeLabels = new Set(state.analysis?.activeLabels || regions.map(region => region.label));
   regions.forEach(region => {
     context.setLineDash([line * 5, line * 3]);
-    context.strokeStyle = 'rgba(255,208,120,.9)';
+    context.strokeStyle = activeLabels.has(region.label) ? 'rgba(255,208,120,.9)' : 'rgba(150,155,180,.5)';
     context.beginPath(); context.arc(region.cx, region.cy, region.r, 0, Math.PI * 2); context.stroke();
     context.setLineDash([]);
     if (isMultiwell()) {
       context.fillStyle = 'rgba(20,17,48,.76)';
       const labelY = region.cy - region.r + Math.max(10, state.width / 100);
       context.fillRect(region.cx - 13, labelY - 7, 26, 14);
-      context.fillStyle = '#f0e7bf'; context.fillText(region.label, region.cx, labelY);
+      context.fillStyle = activeLabels.has(region.label) ? '#f0e7bf' : '#9196aa';
+      context.fillText(activeLabels.has(region.label) ? region.label : `${region.label}×`, region.cx, labelY);
     }
   });
   detections().forEach(item => {
@@ -355,11 +429,15 @@ function renderWellSummary() {
   if (!isMultiwell()) { summary.hidden = true; return; }
   summary.hidden = false;
   const layout = currentLayout(), regions = analysisRegions(), counts = countsByWell(regions);
-  const values = Object.values(counts), average = values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
-  $('#wellSummaryText').textContent = `${regions.length} 孔 · 平均 ${average.toFixed(2)} 个/孔 · 范围 ${Math.min(...values)}–${Math.max(...values)}`;
+  const activeLabels = new Set(state.analysis?.activeLabels || regions.map(region => region.label));
+  const values = regions.filter(region => activeLabels.has(region.label)).map(region => counts[region.label]);
+  const average = values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+  $('#wellSummaryText').textContent = `${values.length}/${regions.length} 个有效孔 · 平均 ${average.toFixed(2)} 个/孔 · 范围 ${values.length ? Math.min(...values) : 0}–${values.length ? Math.max(...values) : 0}`;
   const grid = $('#wellCountGrid');
   grid.style.gridTemplateColumns = `repeat(${layout.cols}, minmax(0, 1fr))`;
-  grid.innerHTML = regions.map(region => `<span class="${counts[region.label] > average && average ? 'high' : ''}">${region.label}<b>${counts[region.label]}</b></span>`).join('');
+  grid.innerHTML = regions.map(region => activeLabels.has(region.label)
+    ? `<span class="${counts[region.label] > average && average ? 'high' : ''}">${region.label}<b>${counts[region.label]}</b></span>`
+    : `<span class="skipped">${region.label}<b>跳过</b></span>`).join('');
 }
 
 function renderAll() {
@@ -367,15 +445,16 @@ function renderAll() {
   const all = detections(), count = all.length;
   const avgDiameter = count ? all.reduce((sum, item) => sum + item.diameter, 0) / count : 0;
   const regions = analysisRegions();
-  const meanPerWell = count / Math.max(1, regions.length);
+  const activeCount = state.analysis?.activeLabels.length || regions.length;
+  const meanPerWell = count / Math.max(1, activeCount);
   $('#totalObjects').textContent = count.toLocaleString();
-  $('#averageDiameter').textContent = count ? (isMultiwell() ? meanPerWell.toFixed(2) : `${avgDiameter.toFixed(1)} px`) : '—';
+  $('#averageDiameter').textContent = count ? (isMultiwell() ? meanPerWell.toFixed(2) : (isPlaqueMode() ? `${$('#peakSpacing').value} px` : `${avgDiameter.toFixed(1)} px`)) : '—';
   $('#autoCount').textContent = state.analysis?.automatic || 0;
   $('#manualAdded').textContent = state.manual.length;
   $('#manualRemoved').textContent = state.removed.size;
   $('#otsuValue').textContent = state.analysis ? state.analysis.otsu.toFixed(1) : '—';
   $('#appliedThreshold').textContent = state.analysis ? state.analysis.threshold.toFixed(1) : '—';
-  $('#countStatus').textContent = state.analysis ? `${count} 个 · ${regions.length} 个分析区` : '等待分析';
+  $('#countStatus').textContent = state.analysis ? `${count.toLocaleString()} 个 · ${activeCount}/${regions.length} 个有效分析区` : '等待分析';
   $('#colonyViewerInfo').textContent = isMultiwell()
     ? `${currentLayout().rows} × ${currentLayout().cols} 孔 · 区域 ${$('#regionWidth').value}% × ${$('#regionHeight').value}%`
     : `培养皿 · 区域 ${$('#regionWidth').value}% × ${$('#regionHeight').value}%`;
@@ -385,14 +464,15 @@ function renderAll() {
 
 function calculationValues() {
   const count = detections().length;
-  const wellCount = Math.max(1, analysisRegions().length);
+  const totalRegionCount = Math.max(1, analysisRegions().length);
+  const wellCount = Math.max(1, state.analysis?.activeLabels.length || totalRegionCount);
   const diameterMm = Number($('#plateDiameterMm').value);
   const volume = Number($('#platedVolume').value);
   const exponent = Number($('#dilutionExponent').value);
   const combinedAreaCm2 = wellCount * Math.PI * (diameterMm / 20) ** 2;
   const basisCount = isMultiwell() ? count / wellCount : count;
   return {
-    count, wellCount, basisCount,
+    count, wellCount, totalRegionCount, basisCount,
     density: combinedAreaCm2 > 0 ? count / combinedAreaCm2 : 0,
     concentration: volume > 0 ? basisCount / (volume * 10 ** exponent) : 0,
     diameterMm, volume, exponent
@@ -424,15 +504,16 @@ $('#colonyCsv').addEventListener('click', () => {
   const all = detections(), result = calculationValues(), layout = currentLayout(), perWell = countsByWell();
   const meta = [
     'metric,value', `file,${csvCell(state.file.name)}`, `container_type,${layout.type}`,
-    `layout_rows,${layout.rows}`, `layout_columns,${layout.cols}`, `well_count,${result.wellCount}`,
+    `analysis_mode,${state.analysis.mode}`, `layout_rows,${layout.rows}`, `layout_columns,${layout.cols}`,
+    `active_wells,${result.wellCount}`, `total_wells,${result.totalRegionCount}`,
     `total_count,${all.length}`, `mean_count_per_well,${(all.length / result.wellCount).toFixed(6)}`,
     `automatic_count,${state.analysis.automatic}`, `manual_added,${state.manual.length}`, `manual_removed,${state.removed.size}`,
     `mean_otsu_threshold,${state.analysis.otsu}`, `mean_applied_threshold,${state.analysis.threshold}`,
     `single_well_or_dish_diameter_mm,${result.diameterMm}`, `dilution_exponent,${result.exponent}`,
     `plated_volume_per_well_ml,${result.volume}`, `estimated_cfu_pfu_per_ml,${result.concentration}`
   ].join('\n');
-  const wellRows = '\n\nwell,count,otsu_threshold,applied_threshold\n' + state.analysis.regions.map((region, index) => `${region.label},${perWell[region.label]},${state.analysis.otsuValues[index]},${state.analysis.thresholds[index]}`).join('\n');
-  const objectRows = '\n\nobject_id,well,type,x_px,y_px,diameter_px,area_px,circularity\n' + all.map((item, index) => [index + 1, item.well || '', item.manual ? 'manual' : 'automatic', item.x.toFixed(3), item.y.toFixed(3), item.diameter.toFixed(3), item.area.toFixed(3), item.circularity.toFixed(4)].join(',')).join('\n');
+  const wellRows = '\n\nwell,status,count,mean_rgb_chroma,otsu_threshold,applied_threshold\n' + state.analysis.regions.map((region, index) => `${region.label},${state.analysis.active[index] ? 'active' : 'skipped'},${perWell[region.label]},${state.analysis.meanChroma[index].toFixed(3)},${state.analysis.otsuValues[index]},${state.analysis.thresholds[index]}`).join('\n');
+  const objectRows = '\n\nobject_id,well,type,x_px,y_px,diameter_or_spacing_px,area_px,circularity,peak_score\n' + all.map((item, index) => [index + 1, item.well || '', item.manual ? 'manual' : 'automatic', item.x.toFixed(3), item.y.toFixed(3), item.diameter.toFixed(3), item.area.toFixed(3), item.circularity.toFixed(4), item.score ?? ''].join(',')).join('\n');
   downloadText('\ufeff' + meta + wellRows + objectRows, resultName('_colony_plaque_count.csv'), 'text/csv;charset=utf-8');
 });
 
@@ -445,7 +526,13 @@ $('#colonyPng').addEventListener('click', () => {
 $('#colonyMethods').addEventListener('click', () => {
   if (!state.analysis) return toast('请先运行自动计数');
   const layout = currentLayout(), result = calculationValues();
-  const text = `Colony/plaque counting parameters\n\nImage: ${state.file.name}\nContainer: ${layout.type === 'dish' ? 'Petri dish' : layout.type + '-well plate'}\nVisual layout: ${layout.rows} rows × ${layout.cols} columns\nObject polarity: ${$('#objectPolarity').value}\nAnalysis region: ${$('#regionWidth').value}% width × ${$('#regionHeight').value}% height\nWell diameter within grid cell: ${$('#wellScale').value}%\nPlate center: X ${$('#plateX').value}%, Y ${$('#plateY').value}%\nMean Otsu threshold across regions: ${state.analysis.otsu.toFixed(2)}\nMean applied threshold across regions: ${state.analysis.threshold.toFixed(2)}\nAccepted diameter: ${$('#minDiameter').value}–${$('#maxDiameter').value} analysis pixels\nMinimum circularity: ${$('#roundness').value}\nFinal total after manual correction: ${detections().length}\nMean count per well/region: ${(detections().length / result.wellCount).toFixed(3)}\n\nMethod: Circular analysis regions were manually aligned to the dish or individual wells using the browser-based Discovery Lab colony/plaque counter. Each region was independently segmented using Otsu's threshold with a common user-defined offset. Four-connected components were filtered by equivalent circular diameter and circularity and assigned to their corresponding well. All detections were visually reviewed per well, and false-positive or missed objects were manually corrected. For multiwell plates, estimated titer used the mean count per well and assumed identical dilution and plated volume across replicate wells.\n`;
+  const detectionParameters = isPlaqueMode()
+    ? `Peak separation: ${$('#peakSpacing').value} analysis pixels\nSkip unstained wells: ${$('#skipUnstained').checked}\nMinimum RGB chroma for stained wells: ${$('#stainCutoff').value}`
+    : `Accepted diameter: ${$('#minDiameter').value}–${$('#maxDiameter').value} analysis pixels\nMinimum circularity: ${$('#roundness').value}`;
+  const method = isPlaqueMode()
+    ? `For dense white plaques on a blue/purple stained monolayer, pixel score was defined as the minimum of the red, green, and blue channel intensities. Bright candidate pixels above the per-well threshold were ranked by score and counted using non-maximum suppression with the specified minimum peak separation. Wells with mean RGB chroma below the staining cutoff were excluded as unstained wells.`
+    : `Four-connected components were filtered by equivalent circular diameter and circularity.`;
+  const text = `Colony/plaque counting parameters\n\nImage: ${state.file.name}\nContainer: ${layout.type === 'dish' ? 'Petri dish' : layout.type + '-well plate'}\nVisual layout: ${layout.rows} rows × ${layout.cols} columns\nAnalysis mode: ${state.analysis.mode}\nAnalysis region: ${$('#regionWidth').value}% width × ${$('#regionHeight').value}% height\nWell diameter within grid cell: ${$('#wellScale').value}%\nPlate center: X ${$('#plateX').value}%, Y ${$('#plateY').value}%\nActive wells: ${result.wellCount}/${result.totalRegionCount}\nMean Otsu threshold across active regions: ${state.analysis.otsu.toFixed(2)}\nMean applied threshold across active regions: ${state.analysis.threshold.toFixed(2)}\n${detectionParameters}\nFinal total after manual correction: ${detections().length}\nMean count per active well/region: ${(detections().length / result.wellCount).toFixed(3)}\n\nMethod: Circular analysis regions were manually aligned to the dish or individual wells using the browser-based Discovery Lab colony/plaque counter. Each active region was independently segmented using Otsu's threshold with a common user-defined offset. ${method} Detections were assigned to their corresponding well. All detections were visually reviewed per well, and false-positive or missed objects were manually corrected. For multiwell plates, estimated titer used the mean count per active well and assumed identical dilution and plated volume across replicate wells.\n`;
   downloadText(text, resultName('_counting_methods.txt'), 'text/plain;charset=utf-8');
 });
 
